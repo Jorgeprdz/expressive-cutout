@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.rounded.Subject
 import androidx.compose.material.icons.rounded.Call
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.LocalShipping
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.NotificationsNone
 import androidx.compose.material.icons.rounded.PhoneCallback
@@ -43,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ekoehler.expressivecutout.R
+import com.ekoehler.expressivecutout.notifications.SmartTestNotifier
 import com.ekoehler.expressivecutout.notifications.TestCaller
 import com.ekoehler.expressivecutout.notifications.TestNotifier
 
@@ -117,6 +119,12 @@ fun TestingScreen(contentPadding: PaddingValues) {
                 icon = Icons.Rounded.Downloading,
                 title = stringResource(R.string.action_send_test_progress),
                 onClick = { postWithPermission { TestNotifier.sendProgress(context) } },
+            )
+
+            TestCard(
+                icon = Icons.Rounded.LocalShipping,
+                title = "Smart delivery · LiveBridge",
+                onClick = { SmartTestNotifier.sendDelivery(context) },
             )
 
             TestCard(
