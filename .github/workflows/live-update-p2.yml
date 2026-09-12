@@ -1,0 +1,41 @@
+name: Live Update P2
+
+on:
+  push:
+    branches: [ci/live-update-p2]
+  workflow_dispatch:
+
+concurrency:
+  group: live-update-p2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply Android 16 Live Update patch
+        run: python .github/scripts/apply_live_update_p2.py
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Assemble debug
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: expressive-cutout-live-update-p2
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
