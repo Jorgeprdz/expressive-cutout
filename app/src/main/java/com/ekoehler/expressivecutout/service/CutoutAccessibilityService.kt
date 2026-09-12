@@ -17,7 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * The always-on host of the island. Its main purpose is to provide a context that can add
  * a TYPE_ACCESSIBILITY_OVERLAY window (no SYSTEM_ALERT_WINDOW required) and to keep the
- * overlay controller and system-event monitor alive for the lifetime of the binding.
+ * overlay controller, system-event monitors and notification-listener watchdog alive for the
+ * lifetime of the binding.
  *
  * It tracks which app is in the foreground, and inspects assistant windows for live response text.
  */
@@ -26,17 +27,19 @@ class CutoutAccessibilityService : AccessibilityService() {
     private var overlay: IslandOverlayController? = null
     private var systemEvents: SystemEventMonitor? = null
     private var mediaPlayback: MediaPlaybackMonitor? = null
+    private var notificationWatchdog: NotificationListenerWatchdog? = null
     private var lastAssistantKey: String? = null
 
     /**
-     * Starts the overlay and the two event monitors, and publishes the service so the rest of the
-     * app can see that the island is live. Mirrored by [teardown].
+     * Starts the overlay, event monitors and listener watchdog, then publishes the service so the
+     * rest of the app can see that the island is live. Mirrored by [teardown].
      */
     override fun onServiceConnected() {
         super.onServiceConnected()
         overlay = IslandOverlayController(this).also { it.start() }
         systemEvents = SystemEventMonitor(this).also { it.start() }
         mediaPlayback = MediaPlaybackMonitor(this).also { it.start() }
+        notificationWatchdog = NotificationListenerWatchdog(this).also { it.start() }
         instance = this
         _bound.value = true
     }
@@ -192,12 +195,14 @@ class CutoutAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Stops the monitors and the overlay and clears the published state. Written to be safe to call
-     * twice, because unbind and destroy both reach it.
+     * Stops the monitors, watchdog and overlay and clears the published state. Written to be safe to
+     * call twice, because unbind and destroy both reach it.
      */
     private fun teardown() {
         _bound.value = false
         instance = null
+        notificationWatchdog?.stop()
+        notificationWatchdog = null
         mediaPlayback?.stop()
         mediaPlayback = null
         systemEvents?.stop()
