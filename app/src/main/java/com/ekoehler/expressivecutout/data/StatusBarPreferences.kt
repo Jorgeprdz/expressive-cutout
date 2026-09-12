@@ -50,19 +50,19 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         prefs[SILENCE_ALERTS] ?: DEFAULT_SILENCE_ALERTS
     }
 
-    fun setHideNotificationIcons(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
+    suspend fun setHideNotificationIcons(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[HIDE_NOTIFICATION_ICONS] = hide
     }
 
-    fun setHideSystemInfo(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
+    suspend fun setHideSystemInfo(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[HIDE_SYSTEM_INFO] = hide
     }
 
-    fun setHideClock(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
+    suspend fun setHideClock(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[HIDE_CLOCK] = hide
     }
 
-    fun setSilenceAlerts(silence: Boolean) = context.statusBarDataStore.edit { prefs ->
+    suspend fun setSilenceAlerts(silence: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[SILENCE_ALERTS] = silence
     }
 
