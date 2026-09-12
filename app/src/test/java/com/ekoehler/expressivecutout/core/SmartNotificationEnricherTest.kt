@@ -41,6 +41,16 @@ class SmartNotificationEnricherTest {
         assertEquals(72, enriched.progressData?.current)
     }
 
+    /** Generic completion wording without ride/order context must not become semantic progress. */
+    @Test
+    fun unrelatedCompletedNotificationIsNotProgress() {
+        val enriched = SmartNotificationEnricher.enrich(
+            notification(title = "Respaldo semanal", text = "Tarea completada"),
+        )
+
+        assertNull(enriched.progressData)
+    }
+
     /** Native source-app progress is authoritative and is never replaced by heuristics. */
     @Test
     fun nativeProgressAlwaysWins() {
