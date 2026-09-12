@@ -57,6 +57,7 @@ object SmartNotificationEnricher {
      * ETAs; they only give the island a stable visual stage that can move forward as wording changes.
      */
     private fun semanticStage(text: String, title: String?): ProgressData? {
+        if (!SEMANTIC_CONTEXT.containsMatchIn(text)) return null
         val stage = STATUS_STAGES.firstOrNull { it.pattern.containsMatchIn(text) } ?: return null
         return ProgressData(
             max = 100,
@@ -71,8 +72,10 @@ object SmartNotificationEnricher {
         val pattern: Regex,
     )
 
+    /** A standalone percentage from 0 through 100. */
     private val PERCENT = Regex("(?<!\\d)(100|[1-9]?\\d)\\s?%")
 
+    /** Wording that makes a percentage likely to represent operation progress. */
     private val PROGRESS_CONTEXT = Regex(
         "\\b(download(?:ing)?|upload(?:ing)?|install(?:ing|ation)?|sync(?:ing)?|backup|restore|" +
             "processing|copying|transfer(?:ring)?|descargando|descarga|subiendo|instalando|" +
@@ -80,8 +83,16 @@ object SmartNotificationEnricher {
         RegexOption.IGNORE_CASE,
     )
 
+    /** Wording that makes a percentage likely to be a value rather than progress. */
     private val PROGRESS_EXCLUSION = Regex(
         "\\b(battery|bater[ií]a|discount|descuento|off|interest|inter[eé]s|score|calificaci[oó]n)\\b",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Context required before generic states such as "complete" can become delivery/ride progress. */
+    private val SEMANTIC_CONTEXT = Regex(
+        "\\b(order|delivery|deliver|courier|driver|ride|trip|pickup|food|uber|didi|rappi|" +
+            "pedido|entrega|repartidor|conductor|viaje|recogida|recolecci[oó]n|comida)\\b",
         RegexOption.IGNORE_CASE,
     )
 
