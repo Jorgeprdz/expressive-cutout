@@ -24,35 +24,45 @@ private val Context.statusBarDataStore: DataStore<Preferences> by preferencesDat
  */
 class StatusBarPreferences(private val context: Context) : JsonSerializable {
 
+    /**
+     * Notification icons default to hidden so the island is the primary visual notification surface.
+     * A stored user choice still wins over this default.
+     */
     val hideNotificationIcons: Flow<Boolean> = context.statusBarDataStore.data.map { prefs ->
-        prefs[HIDE_NOTIFICATION_ICONS] ?: false
+        prefs[HIDE_NOTIFICATION_ICONS] ?: DEFAULT_HIDE_NOTIFICATION_ICONS
     }
 
+    /** Whether system information icons should be hidden. */
     val hideSystemInfo: Flow<Boolean> = context.statusBarDataStore.data.map { prefs ->
         prefs[HIDE_SYSTEM_INFO] ?: false
     }
 
+    /** Whether the status-bar clock should be hidden. */
     val hideClock: Flow<Boolean> = context.statusBarDataStore.data.map { prefs ->
         prefs[HIDE_CLOCK] ?: false
     }
 
+    /**
+     * System heads-up alerts default to silenced while Shizuku is available so a notification shown
+     * by the island is not duplicated by Samsung's own pop-up. A stored user choice still wins.
+     */
     val silenceAlerts: Flow<Boolean> = context.statusBarDataStore.data.map { prefs ->
-        prefs[SILENCE_ALERTS] ?: false
+        prefs[SILENCE_ALERTS] ?: DEFAULT_SILENCE_ALERTS
     }
 
-    suspend fun setHideNotificationIcons(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
+    fun setHideNotificationIcons(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[HIDE_NOTIFICATION_ICONS] = hide
     }
 
-    suspend fun setHideSystemInfo(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
+    fun setHideSystemInfo(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[HIDE_SYSTEM_INFO] = hide
     }
 
-    suspend fun setHideClock(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
+    fun setHideClock(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[HIDE_CLOCK] = hide
     }
 
-    suspend fun setSilenceAlerts(silence: Boolean) = context.statusBarDataStore.edit { prefs ->
+    fun setSilenceAlerts(silence: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[SILENCE_ALERTS] = silence
     }
 
@@ -61,6 +71,8 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         val HIDE_SYSTEM_INFO = booleanPreferencesKey("hide_system_info")
         val HIDE_CLOCK = booleanPreferencesKey("hide_clock")
         val SILENCE_ALERTS = booleanPreferencesKey("silence_alerts")
+        const val DEFAULT_HIDE_NOTIFICATION_ICONS = true
+        const val DEFAULT_SILENCE_ALERTS = true
     }
 
     /**
@@ -90,7 +102,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
     override suspend fun fromJson(json: String) {
         val obj = JSONObject(json)
         if (obj.has("hideNotificationIcons")) {
-            setHideNotificationIcons(obj.optBoolean("hideNotificationIcons", false))
+            setHideNotificationIcons(obj.optBoolean("hideNotificationIcons", DEFAULT_HIDE_NOTIFICATION_ICONS))
         }
         if (obj.has("hideSystemInfo")) {
             setHideSystemInfo(obj.optBoolean("hideSystemInfo", false))
@@ -99,7 +111,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             setHideClock(obj.optBoolean("hideClock", false))
         }
         if (obj.has("silenceAlerts")) {
-            setSilenceAlerts(obj.optBoolean("silenceAlerts", false))
+            setSilenceAlerts(obj.optBoolean("silenceAlerts", DEFAULT_SILENCE_ALERTS))
         }
     }
 }
