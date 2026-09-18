@@ -1,9 +1,9 @@
-scene=status-bar-golden-v1
+scene=status-bar-golden-v2
 canvas=240x36 background=light
 style=IOS_27 display=iOS 27 signature=ios27-solid-pill
 clock=9:41 weight=SEMIBOLD sizeSp=14.50
 network=5G mode=DISCREET weight=SEMIBOLD sizeSp=9.50
-signal=IOS_BOLD_PILLS level=4 active=4 geometry=bold-pill-bars
-wifi=IOS_BOLD_ARCS level=4 arcs=3 stroke=bold-rounded
-battery=IOS_SOLID_CAPSULE level=67 charging=false numeric=false shape=solid-capsule
+ios27.signal=viewBox=241x156 bars=[0.000,0.596,0.178,0.404,r0.485;0.270,0.417,0.187,0.583,r0.489;0.539,0.218,0.187,0.782,r0.489;0.817,0.000,0.183,0.994,r0.500] baseline=aligned
+ios27.wifi=viewBox=207x161 outer=0.000,0.000,1.000,0.410,stroke=0.158 middle=0.174,0.329,0.652,0.317,stroke=0.160 dot=0.357,0.671,0.285,0.286,shape=soft-teardrop
+ios27.battery=viewBox=342x163 body=0.000,0.000,0.912,1.000,r0.310 terminal=0.942,0.325,0.058,0.319,r0.500 mode=solid-capsule bodyColor=#000000 terminalColor=#000000
 spacingDp=4.60 edgeInsetDp=8.00
