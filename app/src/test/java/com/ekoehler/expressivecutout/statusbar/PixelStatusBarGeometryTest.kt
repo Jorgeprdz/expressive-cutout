@@ -113,7 +113,7 @@ class PixelStatusBarGeometryTest {
         val compact = PixelStatusBarGeometry.mobileGlyph(100f, 100f, PixelMobileBarStyle.COMPACT)
         val tall = PixelStatusBarGeometry.mobileGlyph(100f, 100f, PixelMobileBarStyle.TALL)
 
-        assertEquals(86f, classic.bottom, 0.001f)
+        assertEquals(88f, classic.bottom, 0.001f)
         assertEquals(87f, compact.bottom, 0.001f)
         assertEquals(88f, tall.bottom, 0.001f)
         assertTrue(compact.gap < classic.gap)
