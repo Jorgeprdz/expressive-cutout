@@ -86,6 +86,7 @@ fun SettingsTab(
     onOpenBackground: () -> Unit,
     onOpenActionButtons: () -> Unit,
     onOpenShizuku: () -> Unit,
+    onOpenCustomStatusBar: () -> Unit,
     onOpenPermissionDot: () -> Unit,
     onOpenEventIcons: () -> Unit,
     onOpenEvent: (SystemEventType) -> Unit,
@@ -163,7 +164,9 @@ fun SettingsTab(
                 AppearanceScreen(viewModel, contentPadding, onOpenBackground, onOpenActionButtons)
             SettingsRoute.Background -> BackgroundScreen(viewModel, contentPadding)
             SettingsRoute.ActionButtons -> ButtonScreen(viewModel, contentPadding)
-            SettingsRoute.Shizuku -> ShizukuScreen(viewModel, contentPadding, onOpenPermissionDot)
+            SettingsRoute.Shizuku ->
+                ShizukuScreen(viewModel, contentPadding, onOpenPermissionDot, onOpenCustomStatusBar)
+            SettingsRoute.CustomStatusBar -> CustomStatusBarScreen(viewModel, contentPadding)
             SettingsRoute.PermissionDot -> PermissionDotScreen(viewModel, contentPadding)
             SettingsRoute.EventIcons -> EventIconsScreen(viewModel, contentPadding, onOpenEvent)
             SettingsRoute.EventDetail ->
@@ -174,7 +177,7 @@ fun SettingsTab(
 
 /** The screens reachable from the Settings tab. Hoisted to MainScreen so the bottom bar can
  *  switch to a back pill on the detail screens. */
-enum class SettingsRoute { List, SizePosition, DynamicTiles, DynamicTileDetail, Apps, Behaviour, ShowsWhenEmpty, Animation, Appearance, Background, ActionButtons, Shizuku, PermissionDot, EventIcons, EventDetail }
+enum class SettingsRoute { List, SizePosition, DynamicTiles, DynamicTileDetail, Apps, Behaviour, ShowsWhenEmpty, Animation, Appearance, Background, ActionButtons, Shizuku, CustomStatusBar, PermissionDot, EventIcons, EventDetail }
 
 /**
  * The screen that back navigation returns to. Most detail screens go straight back to the list,
@@ -186,7 +189,7 @@ val SettingsRoute.parent: SettingsRoute
             SettingsRoute.Appearance
         SettingsRoute.DynamicTileDetail -> SettingsRoute.DynamicTiles
         SettingsRoute.ShowsWhenEmpty -> SettingsRoute.Behaviour
-        SettingsRoute.PermissionDot -> SettingsRoute.Shizuku
+        SettingsRoute.CustomStatusBar, SettingsRoute.PermissionDot -> SettingsRoute.Shizuku
         SettingsRoute.EventDetail -> SettingsRoute.EventIcons
         else -> SettingsRoute.List
     }
@@ -196,7 +199,8 @@ val SettingsRoute.depth: Int
     get() = when (this) {
         SettingsRoute.List -> 0
         SettingsRoute.Background, SettingsRoute.ActionButtons, SettingsRoute.DynamicTileDetail,
-        SettingsRoute.ShowsWhenEmpty, SettingsRoute.PermissionDot, SettingsRoute.EventDetail -> 2
+        SettingsRoute.ShowsWhenEmpty, SettingsRoute.CustomStatusBar, SettingsRoute.PermissionDot,
+        SettingsRoute.EventDetail -> 2
         else -> 1
     }
 

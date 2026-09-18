@@ -231,6 +231,7 @@ fun MainScreen(viewModel: AppViewModel = viewModel()) {
                             onOpenBackground = { settingsRoute = SettingsRoute.Background },
                             onOpenActionButtons = { settingsRoute = SettingsRoute.ActionButtons },
                             onOpenShizuku = { settingsRoute = SettingsRoute.Shizuku },
+                            onOpenCustomStatusBar = { settingsRoute = SettingsRoute.CustomStatusBar },
                             onOpenPermissionDot = { settingsRoute = SettingsRoute.PermissionDot },
                             onOpenEventIcons = { settingsRoute = SettingsRoute.EventIcons },
                             onOpenEvent = { event ->
@@ -311,6 +312,7 @@ fun MainScreen(viewModel: AppViewModel = viewModel()) {
                         SettingsRoute.Background -> stringResource(R.string.appearance_background_color)
                         SettingsRoute.ActionButtons -> stringResource(R.string.action_buttons_title)
                         SettingsRoute.Shizuku -> stringResource(R.string.shizuku_options_title)
+                        SettingsRoute.CustomStatusBar -> stringResource(R.string.custom_status_bar_title)
                         SettingsRoute.PermissionDot -> stringResource(R.string.permission_dot_title)
                         SettingsRoute.EventIcons -> stringResource(R.string.integrations_system_events_title)
                         SettingsRoute.EventDetail ->
