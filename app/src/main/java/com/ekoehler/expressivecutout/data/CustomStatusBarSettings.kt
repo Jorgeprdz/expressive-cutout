@@ -2,10 +2,12 @@ package com.ekoehler.expressivecutout.data
 
 enum class CustomStatusBarStyle {
     DEFAULT,
-    PIXEL_15,
+    IOS_26,
     IOS_27,
+    PIXEL_15,
+    PIXEL_16_17,
     HYPER_OS,
-    NOTHING_OS;
+    NOTHING_OS_5;
 
     companion object {
         fun fromPersisted(raw: String?): CustomStatusBarStyle {
@@ -17,6 +19,9 @@ enum class CustomStatusBarStyle {
                 "ONE_UI",
                 "ONE_UI_EXISTING",
                 "PIXEL" -> DEFAULT
+                "PIXEL_16",
+                "PIXEL_17" -> PIXEL_16_17
+                "NOTHING_OS" -> NOTHING_OS_5
                 else -> entries.firstOrNull { it.name == normalized } ?: DEFAULT
             }
         }
