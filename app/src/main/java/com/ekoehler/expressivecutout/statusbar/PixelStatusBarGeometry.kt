@@ -102,6 +102,27 @@ internal object PixelStatusBarGeometry {
         )
     }
 
+    fun wifiGlyph(
+        side: Float,
+        profile: StatusBarWifiIconProfile,
+    ): PixelWifiGlyphGeometry {
+        val safeSide = side.coerceAtLeast(0.1f)
+        val centerX = safeSide * profile.centerXFraction
+        val centerY = safeSide * profile.centerYFraction
+        return PixelWifiGlyphGeometry(
+            side = safeSide,
+            centerX = centerX,
+            centerY = centerY,
+            radii = profile.radiiFractions.map { safeSide * it },
+            strokeWidth = safeSide * profile.strokeFraction,
+            startAngle = profile.startAngle,
+            sweepAngle = profile.sweepAngle,
+            dotX = centerX,
+            dotY = safeSide * profile.dotYFraction,
+            dotRadius = maxOf(safeSide * 0.055f, safeSide * profile.dotRadiusFraction * 0.62f),
+        )
+    }
+
     fun mobileStrengths(level: Int?): List<Float> {
         val active = level?.coerceIn(0, 4) ?: 0
         return List(4) { index -> if (index < active) 1f else 0f }
@@ -158,6 +179,39 @@ internal object PixelStatusBarGeometry {
         val safeWidth = width.coerceAtLeast(0.1f)
         val safeHeight = height.coerceAtLeast(0.1f)
         val profile = mobileProfile(style)
+        val left = safeWidth * profile.leftFraction
+        val bottom = safeHeight * profile.bottomFraction
+        val availableWidth = safeWidth * profile.availableWidthFraction
+        val gap = availableWidth * profile.gapFraction
+        val barWidth = ((availableWidth - gap * 3f) / 4f).coerceAtLeast(0f)
+        val heights = profile.heightFractions.map { safeHeight * it }
+        val bars = heights.mapIndexed { index, barHeight ->
+            val x = left + index * (barWidth + gap)
+            PixelMobileBarGeometry(
+                left = x,
+                top = bottom - barHeight,
+                right = x + barWidth,
+                bottom = bottom,
+                cornerRadius = min(barWidth * profile.cornerFraction, barHeight / 2f),
+            )
+        }
+        return PixelMobileGlyphGeometry(
+            width = safeWidth,
+            height = safeHeight,
+            bottom = bottom,
+            barWidth = barWidth,
+            gap = gap,
+            bars = bars,
+        )
+    }
+
+    fun mobileGlyph(
+        width: Float,
+        height: Float,
+        profile: StatusBarMobileIconProfile,
+    ): PixelMobileGlyphGeometry {
+        val safeWidth = width.coerceAtLeast(0.1f)
+        val safeHeight = height.coerceAtLeast(0.1f)
         val left = safeWidth * profile.leftFraction
         val bottom = safeHeight * profile.bottomFraction
         val availableWidth = safeWidth * profile.availableWidthFraction
@@ -242,6 +296,76 @@ internal object PixelStatusBarGeometry {
             bodyCornerRadius = safeHeight * 0.24f,
             terminalCornerRadius = terminal.width / 2f,
             fillCornerRadius = min(fillHeight / 2f, safeHeight * 0.15f),
+            bolt = listOf(
+                boltPoint(0.56f, 0.16f),
+                boltPoint(0.39f, 0.51f),
+                boltPoint(0.52f, 0.51f),
+                boltPoint(0.43f, 0.82f),
+                boltPoint(0.68f, 0.43f),
+                boltPoint(0.55f, 0.43f),
+            ),
+        )
+    }
+
+    fun batteryGlyph(
+        width: Float,
+        height: Float,
+        level: Int?,
+        profile: StatusBarBatteryIconProfile,
+    ): PixelBatteryGlyphGeometry {
+        val safeWidth = width.coerceAtLeast(0.1f)
+        val safeHeight = height.coerceAtLeast(0.1f)
+        val stroke = min(safeWidth, safeHeight) * profile.outlineStrokeFraction
+        val bodyWidth = safeWidth * profile.bodyWidthFraction
+        val body = PixelFloatRect(
+            left = 0f,
+            top = stroke / 2f,
+            right = bodyWidth,
+            bottom = safeHeight - stroke / 2f,
+        )
+        val terminalWidth = safeWidth * profile.terminalWidthFraction
+        val terminalGap = safeWidth * profile.terminalGapFraction
+        val terminalHeight = safeHeight * profile.terminalHeightFraction
+        val terminalLeft = body.right + terminalGap
+        val terminal = PixelFloatRect(
+            left = terminalLeft,
+            top = (safeHeight - terminalHeight) / 2f,
+            right = (terminalLeft + terminalWidth).coerceAtMost(safeWidth),
+            bottom = (safeHeight + terminalHeight) / 2f,
+        )
+
+        val fillInset = maxOf(
+            stroke * profile.fillInsetStrokeMultiplier,
+            safeHeight * profile.fillInsetHeightFraction,
+        )
+        val fillLeft = body.left + fillInset
+        val fillTop = body.top + fillInset
+        val fillMaxWidth = (body.width - fillInset * 2f).coerceAtLeast(0f)
+        val fillHeight = (body.height - fillInset * 2f).coerceAtLeast(0f)
+        val fillWidth = fillMaxWidth * batteryFraction(level)
+        val fill = PixelFloatRect(
+            left = fillLeft,
+            top = fillTop,
+            right = fillLeft + fillWidth,
+            bottom = fillTop + fillHeight,
+        )
+
+        fun boltPoint(xFraction: Float, yFraction: Float) = PixelPoint(
+            x = body.left + body.width * xFraction,
+            y = body.top + body.height * yFraction,
+        )
+
+        return PixelBatteryGlyphGeometry(
+            width = safeWidth,
+            height = safeHeight,
+            body = body,
+            terminal = terminal,
+            fill = fill,
+            fillMaxWidth = fillMaxWidth,
+            outlineStroke = stroke,
+            bodyCornerRadius = safeHeight * profile.bodyCornerFraction,
+            terminalCornerRadius = terminal.width / 2f,
+            fillCornerRadius = min(fillHeight / 2f, safeHeight * profile.fillCornerHeightFraction),
             bolt = listOf(
                 boltPoint(0.56f, 0.16f),
                 boltPoint(0.39f, 0.51f),

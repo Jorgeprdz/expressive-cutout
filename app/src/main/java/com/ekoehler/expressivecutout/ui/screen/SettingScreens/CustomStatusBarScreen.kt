@@ -46,6 +46,7 @@ import com.ekoehler.expressivecutout.statusbar.StatusBarForeground
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutEngine
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutInput
 import com.ekoehler.expressivecutout.statusbar.StatusBarRect
+import com.ekoehler.expressivecutout.statusbar.StatusBarStyleRegistry
 import com.ekoehler.expressivecutout.ui.AppViewModel
 import com.ekoehler.expressivecutout.ui.components.ExpressiveSegmentedRow
 import kotlin.math.roundToInt
@@ -57,6 +58,9 @@ internal fun CustomStatusBarScreen(
 ) {
     val settings by viewModel.customStatusBarSettings.collectAsStateWithLifecycle()
     var previewForeground by rememberSaveable { mutableIntStateOf(0) }
+    val statusBarStyles = remember { StatusBarStyleRegistry.allStyles }
+    val selectedStyleIndex = statusBarStyles.indexOfFirst { it.id == settings.style }
+        .let { if (it >= 0) it else 0 }
 
     var masterScale by remember(settings.masterScale) { mutableStateOf(settings.masterScale) }
     var clockScale by remember(settings.clockScale) { mutableStateOf(settings.clockScale) }
@@ -125,9 +129,16 @@ internal fun CustomStatusBarScreen(
                     style = MaterialTheme.typography.titleMedium,
                 )
                 ExpressiveSegmentedRow(
-                    options = listOf(stringResource(R.string.custom_status_bar_style_pixel)),
-                    selectedIndex = 0,
-                    onSelect = {},
+                    options = statusBarStyles.map { it.displayName },
+                    selectedIndex = selectedStyleIndex,
+                    onSelect = { index ->
+                        viewModel.setCustomStatusBarSettings(
+                            settings.copy(
+                                style = statusBarStyles.getOrNull(index)?.id
+                                    ?: StatusBarStyleRegistry.defaultStyle.id,
+                            ),
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(

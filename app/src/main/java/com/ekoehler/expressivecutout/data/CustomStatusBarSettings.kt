@@ -1,11 +1,25 @@
 package com.ekoehler.expressivecutout.data
 
 enum class CustomStatusBarStyle {
-    PIXEL;
+    DEFAULT,
+    PIXEL_15,
+    IOS_27,
+    HYPER_OS,
+    NOTHING_OS;
 
     companion object {
-        fun fromPersisted(raw: String?): CustomStatusBarStyle =
-            entries.firstOrNull { it.name == raw } ?: PIXEL
+        fun fromPersisted(raw: String?): CustomStatusBarStyle {
+            val normalized = raw?.trim()?.uppercase()
+            return when (normalized) {
+                null,
+                "",
+                "DEFAULT",
+                "ONE_UI",
+                "ONE_UI_EXISTING",
+                "PIXEL" -> DEFAULT
+                else -> entries.firstOrNull { it.name == normalized } ?: DEFAULT
+            }
+        }
     }
 }
 
@@ -33,7 +47,7 @@ enum class BatteryPercentageMode {
 
 data class CustomStatusBarSettings(
     val enabled: Boolean = false,
-    val style: CustomStatusBarStyle = CustomStatusBarStyle.PIXEL,
+    val style: CustomStatusBarStyle = CustomStatusBarStyle.DEFAULT,
     val appearance: CustomStatusBarAppearancePreference = CustomStatusBarAppearancePreference.AUTO,
     val masterScale: Float = DEFAULT_MASTER_SCALE,
     val clockScale: Float = DEFAULT_COMPONENT_SCALE,
@@ -63,7 +77,7 @@ data class CustomStatusBarSettings(
         statusBarOffsetYDp = statusBarOffsetYDp.coerceIn(-MAX_GLOBAL_Y_DP, MAX_GLOBAL_Y_DP),
     )
 
-    /** Restores the Pixel visual profile without unexpectedly disabling the live feature. */
+    /** Restores the default visual profile without unexpectedly disabling the live feature. */
     fun withPixelDefaults(): CustomStatusBarSettings = DEFAULT.copy(
         enabled = enabled,
         appearance = appearance,

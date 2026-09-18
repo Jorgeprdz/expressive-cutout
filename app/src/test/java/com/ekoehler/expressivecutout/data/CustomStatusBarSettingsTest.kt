@@ -6,9 +6,9 @@ import org.junit.Test
 class CustomStatusBarSettingsTest {
 
     @Test
-    fun `defaults preserve the M1 pixel profile`() {
+    fun `defaults preserve the existing status bar profile`() {
         val d = CustomStatusBarSettings.DEFAULT
-        assertEquals(CustomStatusBarStyle.PIXEL, d.style)
+        assertEquals(CustomStatusBarStyle.DEFAULT, d.style)
         assertEquals(1f, d.masterScale)
         assertEquals(1f, d.clockScale)
         assertEquals(1f, d.systemIconsScale)
@@ -52,7 +52,12 @@ class CustomStatusBarSettingsTest {
     fun `unknown persisted enums fall back safely`() {
         assertEquals(BatteryPercentageMode.OFF, BatteryPercentageMode.fromPersisted("wat"))
         assertEquals(PixelMobileBarStyle.CLASSIC, PixelMobileBarStyle.fromPersisted("future"))
-        assertEquals(CustomStatusBarStyle.PIXEL, CustomStatusBarStyle.fromPersisted("future"))
+        assertEquals(CustomStatusBarStyle.DEFAULT, CustomStatusBarStyle.fromPersisted("future"))
+    }
+
+    @Test
+    fun `legacy pixel style persists as default renderer`() {
+        assertEquals(CustomStatusBarStyle.DEFAULT, CustomStatusBarStyle.fromPersisted("PIXEL"))
     }
 
     @Test
@@ -76,6 +81,7 @@ class CustomStatusBarSettingsTest {
     fun `pixel defaults restore all visual tuning`() {
         val changed = CustomStatusBarSettings(
             enabled = true,
+            style = CustomStatusBarStyle.NOTHING_OS,
             appearance = CustomStatusBarAppearancePreference.DARK,
             masterScale = 1.3f,
             clockOffsetXDp = 12f,
@@ -86,6 +92,7 @@ class CustomStatusBarSettingsTest {
         val reset = changed.withPixelDefaults()
 
         assertEquals(true, reset.enabled)
+        assertEquals(CustomStatusBarStyle.DEFAULT, reset.style)
         assertEquals(CustomStatusBarAppearancePreference.DARK, reset.appearance)
         assertEquals(1f, reset.masterScale)
         assertEquals(0f, reset.clockOffsetXDp)
