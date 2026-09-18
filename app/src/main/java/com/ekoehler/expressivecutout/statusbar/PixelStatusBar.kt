@@ -60,12 +60,12 @@ internal fun PixelStatusBarLayer(
     val styleSpec = renderPlan.style
     val scales = PixelStatusBarScale.resolve(safe)
     val leftTint by animateColorAsState(
-        targetValue = if (leftForeground == StatusBarForeground.LIGHT) Color.White else Color.Black,
+        targetValue = StatusBarTint.colorFor(leftForeground),
         animationSpec = tween(durationMillis = 160),
         label = "customStatusBarLeftTint",
     )
     val rightTint by animateColorAsState(
-        targetValue = if (rightForeground == StatusBarForeground.LIGHT) Color.White else Color.Black,
+        targetValue = StatusBarTint.colorFor(rightForeground),
         animationSpec = tween(durationMillis = 160),
         label = "customStatusBarRightTint",
     )
@@ -155,22 +155,24 @@ internal fun PixelStatusBarLayer(
                 return widths.sum() + gaps * spacingDp
             }
 
-            val bothFit = widthDp(includeNetwork = networkAvailable, includePercentage = outsidePercentage != null) <= availableDp
+            val bothFit = widthDp(
+                includeNetwork = networkAvailable,
+                includePercentage = outsidePercentage != null,
+            ) <= availableDp
             val percentageFitsWithoutNetwork =
                 outsidePercentage != null && widthDp(includeNetwork = false, includePercentage = true) <= availableDp
             val networkFitsWithoutPercentage =
                 networkAvailable && widthDp(includeNetwork = true, includePercentage = false) <= availableDp
-
-            val showNetwork = when {
-                bothFit -> networkAvailable
-                percentageFitsWithoutNetwork -> false
-                else -> networkFitsWithoutPercentage
-            }
-            val showPercentage = when {
-                bothFit -> outsidePercentage != null
-                percentageFitsWithoutNetwork -> true
-                else -> false
-            }
+            val visibility = StatusBarRightGroupVisibilityPolicy.resolve(
+                wifiConnected = state.wifi.connected,
+                networkAvailable = networkAvailable,
+                outsidePercentageAvailable = outsidePercentage != null,
+                bothFit = bothFit,
+                networkFitsWithoutPercentage = networkFitsWithoutPercentage,
+                percentageFitsWithoutNetwork = percentageFitsWithoutNetwork,
+            )
+            val showNetwork = visibility.showNetwork
+            val showPercentage = visibility.showPercentage
 
             val contentWidthDp = widthDp(showNetwork, showPercentage)
                 .coerceAtMost(availableDp.coerceAtLeast(0f))
