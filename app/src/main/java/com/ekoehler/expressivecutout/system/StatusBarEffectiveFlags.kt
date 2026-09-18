@@ -1,15 +1,30 @@
 package com.ekoehler.expressivecutout.system
 
-/** Composes transient status-bar effects over the user's persistent status-bar wishes. */
+/**
+ * Compatibility facade for the original persistent + transient status-bar composition.
+ *
+ * The actual rule now lives in [StatusBarDisableReducer], so future owners such as the custom
+ * status bar cannot be accidentally cleared when a Dynamic Island pulse ends.
+ */
 internal object StatusBarEffectiveFlags {
 
-    /** Adds transient arrival icon suppression without altering any persistent wish or alert state. */
     fun compose(
         persistent: StatusBarFlagState,
         transientHideStatusIcons: Boolean,
-    ): StatusBarFlagState = persistent.copy(
-        hideNotificationIcons = persistent.hideNotificationIcons || transientHideStatusIcons,
-        hideSystemInfo = persistent.hideSystemInfo || transientHideStatusIcons,
-        hideClock = persistent.hideClock || transientHideStatusIcons,
-    )
+    ): StatusBarFlagState {
+        val requests = buildMap {
+            put(StatusBarDisableOwner.USER_PERSISTENT, persistent)
+            if (transientHideStatusIcons) {
+                put(
+                    StatusBarDisableOwner.DYNAMIC_ISLAND_TRANSIENT,
+                    StatusBarFlagState(
+                        hideNotificationIcons = true,
+                        hideSystemInfo = true,
+                        hideClock = true,
+                    ),
+                )
+            }
+        }
+        return StatusBarDisableReducer.reduce(requests)
+    }
 }

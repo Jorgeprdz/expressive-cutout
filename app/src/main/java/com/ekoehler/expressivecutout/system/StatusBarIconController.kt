@@ -14,10 +14,8 @@ import kotlinx.coroutines.launch
 import rikka.shizuku.ShizukuBinderWrapper
 import rikka.shizuku.SystemServiceHelper
 
-/** Log tag for the reflection below, which reports failures rather than throwing. */
 private const val TAG = "StatusBarIcons"
 
-/** Hidden `StatusBarManager` disable flags. Only the ones we use are named here. */
 private const val DISABLE_NONE = 0x00000000
 private const val DISABLE_NOTIFICATION_ICONS = 0x00020000
 private const val DISABLE_NOTIFICATION_ALERTS = 0x00040000
@@ -25,64 +23,43 @@ private const val DISABLE_SYSTEM_INFO = 0x00100000
 private const val DISABLE_CLOCK = 0x00800000
 
 /**
- * Hides selected system status-bar elements through Shizuku while composing transient effects over
- * the user's persistent wishes.
+ * Applies the union of independently-owned status-bar disable wishes through Shizuku.
  *
- * The call itself is `IStatusBarService.disable`, which needs `android.permission.STATUS_BAR` — a
- * privileged permission we can never hold, but shell does, which is what Shizuku lends us.
+ * The hidden call is `IStatusBarService.disable`, which requires the privileged STATUS_BAR
+ * permission. Shizuku lends the shell identity; failures are always fail-open and invalidate the
+ * cached proxy so a later reconnect can rebuild it.
  *
- * Two things drive the design:
- *
- * - **Reflection, not a stub AIDL.** AIDL transaction IDs are positional, so a hand-written
- *   `IStatusBarService.aidl` would have to match the running OS's method order exactly and would
- *   break on the next Android release. Reflecting on the framework's own class always matches.
- * - **[token] must outlive the call.** `StatusBarManagerService` keeps the disable flags in a record
- *   keyed by this binder and drops them when it dies, so the token is held for the process lifetime.
- *   The upshot is a free safety net: if our process is killed the icons come back on their own, and
- *   [start] re-applies them next launch.
+ * [token] is intentionally process-lifetime. StatusBarManagerService ties disable records to it,
+ * so process death restores SystemUI automatically.
  */
 object StatusBarIconController {
 
-    /** The one process-lifetime status-bar client identity, reused for persistent and transient flags. */
     private val token = Binder()
 
-    /** Cached Shizuku-backed framework proxy, invalidated whenever the bridge becomes unavailable. */
     @Volatile
     private var service: Any? = null
 
-    /** Last user wish observed from DataStore; transient pulse state is never persisted into it. */
-    @Volatile
-    private var persistentFlags = StatusBarFlagState()
+    /** All live requests, keyed by feature ownership rather than by a shared boolean/ref-count. */
+    private val ownerRequests = mutableMapOf<StatusBarDisableOwner, StatusBarFlagState>()
 
-    /** In-memory status-icon suppression layered over [persistentFlags]. */
-    @Volatile
-    private var transientHideStatusIcons = false
-
-    /** Package identity supplied to `IStatusBarService.disable`, seeded once from [start]. */
     @Volatile
     private var applicationPackageName: String? = null
 
-    /** Process-lifetime scope supplied by the Application, reused for the single pulse expiry job. */
     @Volatile
     private var applicationScope: CoroutineScope? = null
 
-    /** Monotonic expiry of the current transient status-icon pulse, or null when inactive. */
     @Volatile
     private var pulseDeadlineElapsedRealtimeMs: Long? = null
 
-    /** The only pulse-expiry job; overlapping arrivals extend its deadline instead of spawning jobs. */
     @Volatile
     private var pulseExpiryJob: Job? = null
 
-    /**
-     * Keeps the system status bar in sync with the saved wish, re-applying whenever Shizuku becomes
-     * reachable again — after a reboot, or after the user starts Shizuku for the first time.
-     *
-     * There is deliberately no `stop()`, and adding one would be a mistake: releasing [token] is
-     * what restores the system icons, so a public stop would be a way to silently undo the user's
-     * setting. The process dying is the only thing that should clear these flags, which is the
-     * safety net described above.
-     */
+    private val transientStatusIconRequest = StatusBarFlagState(
+        hideNotificationIcons = true,
+        hideSystemInfo = true,
+        hideClock = true,
+    )
+
     fun start(context: Context, scope: CoroutineScope) {
         val preferences = StatusBarPreferences(context)
         applicationPackageName = context.packageName
@@ -98,7 +75,8 @@ object StatusBarIconController {
                 Wish(hideIcons, hideSystemInfo, hideClock, silenceAlerts, status)
             }
                 .collect { wish ->
-                    updatePersistentFlags(
+                    setOwnerRequestLocked(
+                        StatusBarDisableOwner.USER_PERSISTENT,
                         StatusBarFlagState(
                             hideNotificationIcons = wish.hideIcons,
                             hideSystemInfo = wish.hideSystemInfo,
@@ -107,8 +85,6 @@ object StatusBarIconController {
                         ),
                     )
                     if (wish.status != ShizukuStatus.READY) {
-                        // A dead Shizuku also invalidates the cached proxy; drop it so the next
-                        // successful call rebuilds one over the fresh binder.
                         service = null
                         return@collect
                     }
@@ -118,8 +94,8 @@ object StatusBarIconController {
     }
 
     /**
-     * Applies or clears the persistent status-bar wishes while preserving any active transient
-     * status-icon pulse. Kept as the existing public API for callers outside [start].
+     * Existing API for callers that apply the user's persistent settings directly.
+     * Other owners remain untouched.
      */
     @Synchronized
     fun apply(
@@ -130,20 +106,48 @@ object StatusBarIconController {
         packageName: String,
     ): Boolean {
         applicationPackageName = packageName
-        persistentFlags = StatusBarFlagState(
-            hideNotificationIcons = hideIcons,
-            hideSystemInfo = hideSystemInfo,
-            hideClock = hideClock,
-            silenceAlerts = silenceAlerts,
+        setOwnerRequestLocked(
+            StatusBarDisableOwner.USER_PERSISTENT,
+            StatusBarFlagState(
+                hideNotificationIcons = hideIcons,
+                hideSystemInfo = hideSystemInfo,
+                hideClock = hideClock,
+                silenceAlerts = silenceAlerts,
+            ),
         )
         return applyEffectiveFlagsLocked(packageName)
     }
 
     /**
-     * Starts or extends the one transient status-icon suppression lease. The deadline uses
-     * [SystemClock.elapsedRealtime] so wall-clock changes cannot shorten or lengthen the pulse. A
-     * missing Shizuku grant simply skips the optional effect and never asks the user for permission.
+     * Stores or replaces one feature-owned request. This intentionally remembers the request while
+     * Shizuku is unavailable; [start] will reapply the full union when the bridge becomes READY.
      */
+    @Synchronized
+    internal fun setOwnerRequest(
+        owner: StatusBarDisableOwner,
+        request: StatusBarFlagState,
+    ): Boolean {
+        setOwnerRequestLocked(owner, request)
+        val packageName = applicationPackageName ?: return false
+        if (ShizukuState.status.value != ShizukuStatus.READY) {
+            service = null
+            return false
+        }
+        return applyEffectiveFlagsLocked(packageName)
+    }
+
+    /** Releases only [owner]'s request and preserves every other owner's wishes. */
+    @Synchronized
+    internal fun clearOwnerRequest(owner: StatusBarDisableOwner): Boolean {
+        ownerRequests.remove(owner)
+        val packageName = applicationPackageName ?: return false
+        if (ShizukuState.status.value != ShizukuStatus.READY) {
+            service = null
+            return false
+        }
+        return applyEffectiveFlagsLocked(packageName)
+    }
+
     @Synchronized
     fun pulseStatusIcons(
         durationMs: Long = StatusBarPulseDeadline.DEFAULT_LIVE_ACTIVITY_PULSE_MS,
@@ -175,33 +179,40 @@ object StatusBarIconController {
     }
 
     /**
-     * Temporarily adds status-icon suppression to the saved status-bar wish. Activation is
-     * skipped when Shizuku is unavailable and never requests permission; deactivation always clears
-     * the in-memory transient bit so a later reconnect restores only the user's persistent wishes.
+     * The Dynamic Island transient owner remains optional: if Shizuku is down we do not retain a
+     * stale pulse request. Clearing always releases only that owner.
      */
     @Synchronized
     fun setTransientStatusIconSuppression(active: Boolean): Boolean {
         val packageName = applicationPackageName ?: return false
         if (active && ShizukuState.status.value != ShizukuStatus.READY) return false
 
-        transientHideStatusIcons = active
+        if (active) {
+            setOwnerRequestLocked(
+                StatusBarDisableOwner.DYNAMIC_ISLAND_TRANSIENT,
+                transientStatusIconRequest,
+            )
+        } else {
+            ownerRequests.remove(StatusBarDisableOwner.DYNAMIC_ISLAND_TRANSIENT)
+        }
+
         if (ShizukuState.status.value != ShizukuStatus.READY) {
             service = null
             return false
         }
 
         val applied = applyEffectiveFlagsLocked(packageName)
-        if (!applied && active) transientHideStatusIcons = false
+        if (!applied && active) {
+            ownerRequests.remove(StatusBarDisableOwner.DYNAMIC_ISLAND_TRANSIENT)
+        }
         return applied
     }
 
-    /** Ends the transient arrival lease immediately and reapplies the user's persistent wishes. */
     @Synchronized
     fun clearTransientStatusIconSuppression() {
         clearPulseLocked()
     }
 
-    /** Waits against the latest monotonic deadline; a stale wake-up can never clear an extension. */
     private suspend fun awaitPulseExpiry() {
         while (true) {
             val deadline = synchronized(this) { pulseDeadlineElapsedRealtimeMs } ?: return
@@ -233,7 +244,6 @@ object StatusBarIconController {
         }
     }
 
-    /** Clears an active transient lease without changing the user's persistent status-bar wishes. */
     private fun clearPulseLocked() {
         pulseDeadlineElapsedRealtimeMs = null
         pulseExpiryJob?.cancel()
@@ -241,26 +251,22 @@ object StatusBarIconController {
         setTransientStatusIconSuppression(active = false)
     }
 
-    /** Replaces the remembered persistent wish without touching transient pulse state. */
-    @Synchronized
-    private fun updatePersistentFlags(flags: StatusBarFlagState) {
-        persistentFlags = flags
+    private fun setOwnerRequestLocked(
+        owner: StatusBarDisableOwner,
+        request: StatusBarFlagState,
+    ) {
+        ownerRequests[owner] = request
     }
 
-    /** Applies the composed persistent and transient wish using the process-lifetime [token]. */
     @Synchronized
-    private fun applyEffectiveFlags(packageName: String): Boolean = applyEffectiveFlagsLocked(packageName)
+    private fun applyEffectiveFlags(packageName: String): Boolean =
+        applyEffectiveFlagsLocked(packageName)
 
-    /** Performs the composed apply while the controller monitor is already held. */
     private fun applyEffectiveFlagsLocked(packageName: String): Boolean {
-        val effective = StatusBarEffectiveFlags.compose(
-            persistent = persistentFlags,
-            transientHideStatusIcons = transientHideStatusIcons,
-        )
+        val effective = StatusBarDisableReducer.reduce(ownerRequests)
         return applyFlagsLocked(effective, packageName)
     }
 
-    /** Converts one complete effective wish into the platform disable mask and applies it atomically. */
     private fun applyFlagsLocked(flags: StatusBarFlagState, packageName: String): Boolean = runCatching {
         var disableFlags = DISABLE_NONE
         if (flags.hideNotificationIcons) disableFlags = disableFlags or DISABLE_NOTIFICATION_ICONS
@@ -282,7 +288,6 @@ object StatusBarIconController {
         false
     }
 
-    /** The full set of status-bar wishes plus the bridge state, combined for [start]. */
     private data class Wish(
         val hideIcons: Boolean,
         val hideSystemInfo: Boolean,
@@ -292,8 +297,8 @@ object StatusBarIconController {
     )
 
     /**
-     * Reflects `IStatusBarService` out from behind a Shizuku binder wrapper. Hidden and non-SDK,
-     * which is why the app lifts the hidden-API restriction at startup.
+     * Hidden/non-SDK service access is necessary because third-party apps cannot hold STATUS_BAR.
+     * Reflection targets the running framework's own stub instead of freezing AIDL transaction IDs.
      */
     private fun buildService(): Any {
         val binder = ShizukuBinderWrapper(SystemServiceHelper.getSystemService("statusbar"))
@@ -303,10 +308,6 @@ object StatusBarIconController {
             ?: error("IStatusBarService.asInterface returned null")
     }
 
-    /**
-     * Invokes `disable(int, IBinder, String)`, falling back to the per-user overload on builds that
-     * only expose that one.
-     */
     private fun Any.disable(flags: Int, packageName: String) {
         val disable = runCatching {
             javaClass.getMethod(
