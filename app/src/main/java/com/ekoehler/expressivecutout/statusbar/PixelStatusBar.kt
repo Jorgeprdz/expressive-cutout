@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
+import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 import com.ekoehler.expressivecutout.data.PixelStatusBarScale
 
 /**
@@ -103,7 +104,12 @@ internal fun PixelStatusBarLayer(
             fun widthDp(includeNetwork: Boolean, includePercentage: Boolean): Float {
                 val widths = buildList {
                     if (state.cellular.connected) {
-                        add(PixelStatusBarGeometry.MOBILE_SIZE_DP * scales.systemIcons)
+                        add(
+                            PixelStatusBarPresentation.mobileSignalWidthDp(
+                                safe.mobileBarStyle,
+                                scales.systemIcons,
+                            ),
+                        )
                     }
                     if (includeNetwork && networkAvailable) {
                         state.cellular.networkType?.let {
@@ -191,6 +197,7 @@ internal fun PixelStatusBarLayer(
                         level = state.cellular.level,
                         tint = rightTint,
                         scale = scales.systemIcons,
+                        style = safe.mobileBarStyle,
                         modifier = Modifier.offset(y = optical.mobileYDp.dp),
                     )
                 }
@@ -280,14 +287,17 @@ internal fun PixelMobileGlyph(
     level: Int?,
     tint: Color,
     scale: Float = 1f,
+    style: PixelMobileBarStyle = PixelMobileBarStyle.CLASSIC,
     modifier: Modifier = Modifier,
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     val strengths = PixelStatusBarGeometry.mobileStrengths(level)
     Canvas(
-        modifier = modifier.size((PixelStatusBarGeometry.MOBILE_SIZE_DP * safeScale).dp),
+        modifier = modifier
+            .width(PixelStatusBarPresentation.mobileSignalWidthDp(style, safeScale).dp)
+            .height((PixelStatusBarGeometry.MOBILE_HEIGHT_DP * safeScale).dp),
     ) {
-        val geometry = PixelStatusBarGeometry.mobileGlyph(size.width, size.height)
+        val geometry = PixelStatusBarGeometry.mobileGlyph(size.width, size.height, style)
         geometry.bars.forEachIndexed { index, bar ->
             drawRoundRect(
                 color = tint.copy(

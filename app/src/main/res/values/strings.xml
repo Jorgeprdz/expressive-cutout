@@ -626,6 +626,11 @@
     <string name="custom_status_bar_master_scale_desc">Scale the entire custom status bar together.</string>
     <string name="custom_status_bar_clock_section">Clock</string>
     <string name="custom_status_bar_system_section">System icons</string>
+    <string name="custom_status_bar_mobile_bar_style">Mobile signal bars</string>
+    <string name="custom_status_bar_mobile_bar_style_desc">Choose the shape and rhythm of the four Pixel-style signal bars.</string>
+    <string name="custom_status_bar_mobile_bar_classic">Classic</string>
+    <string name="custom_status_bar_mobile_bar_compact">Compact</string>
+    <string name="custom_status_bar_mobile_bar_tall">Tall</string>
     <string name="custom_status_bar_battery_section">Battery</string>
     <string name="custom_status_bar_position_section">Position</string>
     <string name="custom_status_bar_scale">Scale</string>

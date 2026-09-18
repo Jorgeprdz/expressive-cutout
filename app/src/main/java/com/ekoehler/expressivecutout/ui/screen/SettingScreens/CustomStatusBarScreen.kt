@@ -38,6 +38,7 @@ import com.ekoehler.expressivecutout.R
 import com.ekoehler.expressivecutout.data.BatteryPercentageMode
 import com.ekoehler.expressivecutout.data.CustomStatusBarAppearancePreference
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
+import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 import com.ekoehler.expressivecutout.statusbar.CustomStatusBarPreviewState
 import com.ekoehler.expressivecutout.statusbar.IslandOccupancy
 import com.ekoehler.expressivecutout.statusbar.PixelStatusBarLayer
@@ -211,6 +212,50 @@ internal fun CustomStatusBarScreen(
         )
 
         SectionTitle(stringResource(R.string.custom_status_bar_system_section))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    stringResource(R.string.custom_status_bar_mobile_bar_style),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    stringResource(R.string.custom_status_bar_mobile_bar_style_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ExpressiveSegmentedRow(
+                    options = listOf(
+                        stringResource(R.string.custom_status_bar_mobile_bar_classic),
+                        stringResource(R.string.custom_status_bar_mobile_bar_compact),
+                        stringResource(R.string.custom_status_bar_mobile_bar_tall),
+                    ),
+                    selectedIndex = when (settings.mobileBarStyle) {
+                        PixelMobileBarStyle.CLASSIC -> 0
+                        PixelMobileBarStyle.COMPACT -> 1
+                        PixelMobileBarStyle.TALL -> 2
+                    },
+                    onSelect = { index ->
+                        viewModel.setCustomStatusBarSettings(
+                            settings.copy(
+                                mobileBarStyle = when (index) {
+                                    1 -> PixelMobileBarStyle.COMPACT
+                                    2 -> PixelMobileBarStyle.TALL
+                                    else -> PixelMobileBarStyle.CLASSIC
+                                },
+                            ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
         SettingsSliderCard(
             RoundedCornerShape(24.dp),
             stringResource(R.string.custom_status_bar_scale),

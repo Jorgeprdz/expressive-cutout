@@ -68,6 +68,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
                     ?: CustomStatusBarSettings.DEFAULT_SPACING_DP,
                 systemIconsOffsetXDp = prefs[CUSTOM_STATUS_BAR_SYSTEM_OFFSET_X] ?: 0f,
                 systemIconsOffsetYDp = prefs[CUSTOM_STATUS_BAR_SYSTEM_OFFSET_Y] ?: 0f,
+                mobileBarStyle = PixelMobileBarStyle.fromPersisted(prefs[CUSTOM_STATUS_BAR_MOBILE_BAR_STYLE]),
                 batteryScale = prefs[CUSTOM_STATUS_BAR_BATTERY_SCALE]
                     ?: CustomStatusBarSettings.DEFAULT_COMPONENT_SCALE,
                 statusBarOffsetYDp = prefs[CUSTOM_STATUS_BAR_OFFSET_Y] ?: 0f,
@@ -121,6 +122,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             prefs[CUSTOM_STATUS_BAR_SYSTEM_SPACING] = safe.systemIconsSpacingDp
             prefs[CUSTOM_STATUS_BAR_SYSTEM_OFFSET_X] = safe.systemIconsOffsetXDp
             prefs[CUSTOM_STATUS_BAR_SYSTEM_OFFSET_Y] = safe.systemIconsOffsetYDp
+            prefs[CUSTOM_STATUS_BAR_MOBILE_BAR_STYLE] = safe.mobileBarStyle.name
             prefs[CUSTOM_STATUS_BAR_BATTERY_SCALE] = safe.batteryScale
             prefs[CUSTOM_STATUS_BAR_OFFSET_Y] = safe.statusBarOffsetYDp
             prefs[CUSTOM_STATUS_BAR_BATTERY_PERCENTAGE] = safe.batteryPercentageMode.name
@@ -143,6 +145,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         val CUSTOM_STATUS_BAR_SYSTEM_SPACING = floatPreferencesKey("custom_status_bar_system_spacing")
         val CUSTOM_STATUS_BAR_SYSTEM_OFFSET_X = floatPreferencesKey("custom_status_bar_system_offset_x")
         val CUSTOM_STATUS_BAR_SYSTEM_OFFSET_Y = floatPreferencesKey("custom_status_bar_system_offset_y")
+        val CUSTOM_STATUS_BAR_MOBILE_BAR_STYLE = stringPreferencesKey("custom_status_bar_mobile_bar_style")
         val CUSTOM_STATUS_BAR_BATTERY_SCALE = floatPreferencesKey("custom_status_bar_battery_scale")
         val CUSTOM_STATUS_BAR_OFFSET_Y = floatPreferencesKey("custom_status_bar_offset_y")
         val CUSTOM_STATUS_BAR_BATTERY_PERCENTAGE =
@@ -176,6 +179,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             put("customStatusBarSystemSpacing", customSettings.systemIconsSpacingDp)
             put("customStatusBarSystemOffsetX", customSettings.systemIconsOffsetXDp)
             put("customStatusBarSystemOffsetY", customSettings.systemIconsOffsetYDp)
+            put("customStatusBarMobileBarStyle", customSettings.mobileBarStyle.name)
             put("customStatusBarBatteryScale", customSettings.batteryScale)
             put("customStatusBarOffsetY", customSettings.statusBarOffsetYDp)
             put("customStatusBarBatteryPercentage", customSettings.batteryPercentageMode.name)
@@ -214,6 +218,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             obj.has("customStatusBarSystemSpacing") ||
             obj.has("customStatusBarSystemOffsetX") ||
             obj.has("customStatusBarSystemOffsetY") ||
+            obj.has("customStatusBarMobileBarStyle") ||
             obj.has("customStatusBarBatteryScale") ||
             obj.has("customStatusBarOffsetY") ||
             obj.has("customStatusBarBatteryPercentage")
@@ -256,6 +261,12 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             }
             if (obj.has("customStatusBarSystemOffsetY")) {
                 settings = settings.copy(systemIconsOffsetYDp = obj.optDouble("customStatusBarSystemOffsetY").toFloat())
+            }
+            if (obj.has("customStatusBarMobileBarStyle")) {
+                settings = settings.copy(
+                    mobileBarStyle =
+                        PixelMobileBarStyle.fromPersisted(obj.optString("customStatusBarMobileBarStyle")),
+                )
             }
             if (obj.has("customStatusBarBatteryScale")) {
                 settings = settings.copy(batteryScale = obj.optDouble("customStatusBarBatteryScale").toFloat())
