@@ -14,6 +14,55 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 
+internal object StatusBarTelephonyDisplayInfoMapper {
+    // Public TelephonyManager / TelephonyDisplayInfo constants kept numeric so this mapper remains
+    // pure JVM-testable without depending on Android runtime static initialization.
+    private const val NETWORK_TYPE_UMTS = 3
+    private const val NETWORK_TYPE_HSDPA = 8
+    private const val NETWORK_TYPE_HSUPA = 9
+    private const val NETWORK_TYPE_HSPA = 10
+    private const val NETWORK_TYPE_LTE = 13
+    private const val NETWORK_TYPE_HSPAP = 15
+    private const val NETWORK_TYPE_LTE_CA = 19
+    private const val NETWORK_TYPE_NR = 20
+
+    private const val OVERRIDE_NONE = 0
+    private const val OVERRIDE_LTE_CA = 1
+    private const val OVERRIDE_LTE_ADVANCED_PRO = 2
+    private const val OVERRIDE_NR_NSA = 3
+    private const val OVERRIDE_NR_NSA_MMWAVE = 4
+    private const val OVERRIDE_NR_ADVANCED = 5
+
+    fun map(networkType: Int, overrideNetworkType: Int): StatusBarNetworkType? {
+        return when (overrideNetworkType) {
+            OVERRIDE_LTE_CA,
+            OVERRIDE_LTE_ADVANCED_PRO,
+            -> StatusBarNetworkType.FOUR_G_PLUS
+
+            OVERRIDE_NR_NSA,
+            OVERRIDE_NR_NSA_MMWAVE,
+            OVERRIDE_NR_ADVANCED,
+            -> StatusBarNetworkType.FIVE_G
+
+            OVERRIDE_NONE -> when (networkType) {
+                NETWORK_TYPE_NR -> StatusBarNetworkType.FIVE_G
+                NETWORK_TYPE_LTE_CA -> StatusBarNetworkType.FOUR_G_PLUS
+                NETWORK_TYPE_LTE -> StatusBarNetworkType.FOUR_G
+                NETWORK_TYPE_HSPAP,
+                NETWORK_TYPE_HSPA,
+                NETWORK_TYPE_HSDPA,
+                NETWORK_TYPE_HSUPA,
+                NETWORK_TYPE_UMTS,
+                -> StatusBarNetworkType.FOUR_G
+
+                else -> null
+            }
+
+            else -> null
+        }
+    }
+}
+
 internal object StatusBarTelephonyNetworkTypeParser {
 
     private data class PhoneBlock(
@@ -94,15 +143,32 @@ internal object StatusBarTelephonyNetworkTypeParser {
     }
 }
 
-internal interface StatusBarTelephonyDumpTransport {
+internal data class StatusBarTelephonyDisplayInfo(
+    val networkType: Int,
+    val overrideNetworkType: Int,
+)
+
+internal interface StatusBarTelephonyTransport {
+    suspend fun readDisplayInfo(): StatusBarTelephonyDisplayInfo?
     suspend fun dumpTelephonyRegistry(): String?
 }
 
 internal class StatusBarTelephonyNetworkTypeSource(
-    private val transport: StatusBarTelephonyDumpTransport,
+    private val transport: StatusBarTelephonyTransport,
 ) {
-    suspend fun snapshot(): StatusBarNetworkType? =
-        transport.dumpTelephonyRegistry()?.let(StatusBarTelephonyNetworkTypeParser::parse)
+    suspend fun snapshot(): StatusBarNetworkType? {
+        val direct = transport.readDisplayInfo()
+            ?.let {
+                StatusBarTelephonyDisplayInfoMapper.map(
+                    networkType = it.networkType,
+                    overrideNetworkType = it.overrideNetworkType,
+                )
+            }
+        if (direct != null) return direct
+
+        return transport.dumpTelephonyRegistry()
+            ?.let(StatusBarTelephonyNetworkTypeParser::parse)
+    }
 }
 
 internal class ShizukuStatusBarTelephonyNetworkTypeSource(
@@ -120,7 +186,7 @@ internal class ShizukuStatusBarTelephonyNetworkTypeSource(
 
 internal class ShizukuUserServiceTelephonyDumpTransport(
     context: Context,
-) : StatusBarTelephonyDumpTransport {
+) : StatusBarTelephonyTransport {
 
     private val appContext = context.applicationContext
     private val remote = AtomicReference<IStatusBarTelephonyUserService?>(null)
@@ -160,6 +226,36 @@ internal class ShizukuUserServiceTelephonyDumpTransport(
             }
             waiter?.complete(null)
             Log.d(TAG, "STATUS_BAR_SIGNAL telephonyServiceDisconnected=true")
+        }
+    }
+
+    override suspend fun readDisplayInfo(): StatusBarTelephonyDisplayInfo? {
+        val service = awaitService() ?: return null
+        return withContext(Dispatchers.IO) {
+            runCatching { service.readDisplayInfo() }
+                .onFailure { error ->
+                    remote.compareAndSet(service, null)
+                    Log.d(
+                        TAG,
+                        "STATUS_BAR_SIGNAL displayInfoFailure=" +
+                            "${error.javaClass.simpleName}:${error.message}",
+                    )
+                }
+                .getOrNull()
+                ?.takeIf { it.size >= 2 }
+                ?.let {
+                    val result = StatusBarTelephonyDisplayInfo(
+                        networkType = it[0],
+                        overrideNetworkType = it[1],
+                    )
+                    Log.d(
+                        TAG,
+                        "STATUS_BAR_SIGNAL direct network=${result.networkType} " +
+                            "override=${result.overrideNetworkType} resolved=" +
+                            "${StatusBarTelephonyDisplayInfoMapper.map(result.networkType, result.overrideNetworkType)}",
+                    )
+                    result
+                }
         }
     }
 
@@ -231,7 +327,7 @@ internal class ShizukuUserServiceTelephonyDumpTransport(
 
     private companion object {
         const val TAG = "StatusBarSignal"
-        const val USER_SERVICE_VERSION = 1
+        const val USER_SERVICE_VERSION = 2
         const val BIND_TIMEOUT_MS = 3_000L
     }
 }
