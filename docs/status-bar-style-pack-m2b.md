@@ -22,7 +22,7 @@ The real Compose renderer lives in:
 app/src/main/java/com/ekoehler/expressivecutout/statusbar/IosStatusBarIconRenderer.kt
 ```
 
-`PixelStatusBar.kt` now routes the iOS 26/iOS 27 signal, Wi-Fi and battery paths to these measured iOS renderers instead of the generic Android-like renderer.
+`PixelStatusBar.kt` routes the iOS 26/iOS 27 signal, Wi-Fi and battery paths to these measured iOS renderers instead of the generic Android-like renderer.
 
 ## iOS 26 measured contract
 
@@ -72,18 +72,77 @@ app/src/main/java/com/ekoehler/expressivecutout/statusbar/IosStatusBarIconRender
 - mode: `solid-capsule`
 - black body: `0.000,0.000,0.912,1.000`
 - black terminal: `0.942,0.325,0.058,0.319`
-- no outline, no numeric percentage
+- no numeric percentage
+
+## M2B.4 — iOS battery color option
+
+M2B.4 added the iOS battery color mode setting:
+
+- `Black` / `MONOCHROME`: keeps the measured iOS battery using the current tint.
+- `Status` / `STATUS_COLOR`: colors the measured iOS battery by level.
+
+Thresholds:
+
+- `<10%` = red
+- `10–19%` = yellow
+- `>=20%` = normal tint
+
+This must stay protected whenever Pixel is redesigned.
+
+## M2B.5 — Pixel status bar redesign
+
+Pixel 16/17 was marked `NO PASS` after the first Android 16 measured pass. The previous implementation copied the measured reference too literally and produced a visually experimental result:
+
+- the mobile signal included lower indicator capsules that read like a dot-matrix system instead of Pixel signal bars;
+- the Wi-Fi arcs were too inflated;
+- the numeric battery felt too pill-like / sticker-like;
+- the group did not feel like one coherent Pixel status bar.
+
+M2B.5 keeps runtime state dynamic but replaces the Pixel visual contract with `pixel1617-*` geometry:
+
+```text
+app/src/main/java/com/ekoehler/expressivecutout/statusbar/Android16StatusBarIconGeometry.kt
+app/src/main/java/com/ekoehler/expressivecutout/statusbar/Android16StatusBarIconRenderer.kt
+```
+
+### Pixel signal v2
+
+- source viewBox: `132x108`
+- language: `pixel-capsule-bars-v2`
+- four single-baseline capsule bars
+- lower indicators removed for the visual redesign
+- `cellular.level` still controls active bars
+
+### Pixel Wi-Fi v2
+
+- source viewBox: `144x112`
+- language: `pixel-bold-arcs-v2`
+- arcs are still thick, but less inflated than the previous measured pass
+- dot remains circular
+- `wifi.level` still controls active parts
+
+### Pixel battery v2
+
+- source viewBox: `224x112`
+- language: `pixel-rounded-rect-v2`
+- rounded rectangle, not full pill
+- separated terminal
+- numeric level remains centered
+- levels `7`, `19`, `67`, and `100` are covered by dedicated goldens
 
 ## Golden visual gate
 
-The JVM golden scene now uses `scene=status-bar-golden-v2`.
+The JVM golden scene uses `scene=status-bar-golden-v3`.
 
-For iOS families, goldens include measured geometry lines, not just labels such as `IOS_BOLD_PILLS`:
+Goldens include measured/dynamic geometry, not just style labels:
 
 ```text
 ios27.signal=viewBox=241x156 bars=[...]
 ios27.wifi=viewBox=207x161 outer=... middle=... dot=...
 ios27.battery=viewBox=342x163 body=... terminal=... mode=solid-capsule
+pixel1617.signal=viewBox=132x108 active=...
+pixel1617.wifi=viewBox=144x112 activeParts=...
+pixel1617.battery=viewBox=224x112 level=... mode=pixel-rounded-rect-v2
 ```
 
 The golden resources live in:
@@ -98,23 +157,21 @@ The test entry point remains:
 ./gradlew testDebugUnitTest --no-daemon
 ```
 
-## Families preserved but not redesigned in M2B.2
+## Families preserved but not redesigned in M2B.5
 
 - Default / One UI
 - Pixel 15
-- Pixel 16/17
 - HyperOS
 - Nothing OS 5
-
-Their goldens were only moved to `v2` so the deterministic scene format stays consistent.
+- iOS 26 / iOS 27 measured geometry
 
 ## Known bugs still outside this turn
 
 Still not fixed here:
 
-- Mobile signal strength does not reliably reflect real intensity.
+- Mobile signal strength does not reliably reflect real intensity if the data source does not deliver it.
 - Network type badge may not appear reliably in runtime real device data.
 - Auto contrast / color switching does not respond correctly to the background.
 - Wi-Fi connected can still hide mobile signal in some real states if the data source does not provide both cleanly.
 
-M2B.2 only recreates measured iOS icon geometry and does not invent runtime network data.
+M2B.5 only redesigns the Pixel visual family. It does not invent runtime network data.
