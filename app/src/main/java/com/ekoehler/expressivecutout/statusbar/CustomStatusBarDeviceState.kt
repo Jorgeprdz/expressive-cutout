@@ -74,6 +74,28 @@ internal object CustomStatusBarDeviceReducer {
         ),
     )
 
+    fun withCellularPresence(
+        state: CustomStatusBarDeviceState,
+        connected: Boolean,
+        level: Int?,
+    ): CustomStatusBarDeviceState = state.copy(
+        cellular = state.cellular.copy(
+            connected = connected,
+            level = level.takeIf { connected }?.coerceIn(0, 4),
+            networkType = state.cellular.networkType.takeIf { connected },
+        ),
+    )
+
+    fun withCellularNetworkType(
+        state: CustomStatusBarDeviceState,
+        networkType: StatusBarNetworkType?,
+    ): CustomStatusBarDeviceState = state.copy(
+        cellular = state.cellular.copy(
+            connected = state.cellular.connected || networkType != null,
+            networkType = networkType,
+        ),
+    )
+
     fun withCellular(
         state: CustomStatusBarDeviceState,
         connected: Boolean,
@@ -139,6 +161,18 @@ internal object CustomStatusBarDeviceStateStore {
     fun updateCellularSignal(level: Int?) {
         _state.update {
             CustomStatusBarDeviceReducer.withCellularSignal(it, level)
+        }
+    }
+
+    fun updateCellularPresence(connected: Boolean, level: Int?) {
+        _state.update {
+            CustomStatusBarDeviceReducer.withCellularPresence(it, connected, level)
+        }
+    }
+
+    fun updateCellularNetworkType(networkType: StatusBarNetworkType?) {
+        _state.update {
+            CustomStatusBarDeviceReducer.withCellularNetworkType(it, networkType)
         }
     }
 

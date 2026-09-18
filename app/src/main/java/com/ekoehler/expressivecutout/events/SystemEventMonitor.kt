@@ -24,6 +24,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.telephony.SignalStrength
 import android.telephony.TelephonyCallback
@@ -37,6 +38,7 @@ import com.ekoehler.expressivecutout.core.IslandEventBus
 import com.ekoehler.expressivecutout.core.SystemEventPayload
 import com.ekoehler.expressivecutout.core.SystemEventType
 import com.ekoehler.expressivecutout.statusbar.CustomStatusBarDeviceStateStore
+import com.ekoehler.expressivecutout.statusbar.ShizukuStatusBarTelephonyNetworkTypeSource
 import com.ekoehler.expressivecutout.statusbar.StatusBarSignalLevelMapper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +63,7 @@ class SystemEventMonitor(
 
     private val connectivityManager = context.getSystemService<ConnectivityManager>()
     private val telephonyManager = context.getSystemService<TelephonyManager>()
+    private val cellularNetworkTypeSource = ShizukuStatusBarTelephonyNetworkTypeSource(context)
     private val audioManager = context.getSystemService<AudioManager>()
 
     @Volatile
@@ -83,6 +86,8 @@ class SystemEventMonitor(
 
     private var lockPollingJob: Job? = null
     private var cellularSignalCallback: TelephonyCallback? = null
+    private var cellularNetworkTypeRefreshJob: Job? = null
+    private var lastCellularNetworkTypeRefreshAt = 0L
 
     private val adbWifiObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
@@ -389,19 +394,23 @@ class SystemEventMonitor(
                 ?.getNetworkCapabilities(network)
                 ?.signalStrength
                 ?.let(StatusBarSignalLevelMapper::cellularFromDbm)
-            CustomStatusBarDeviceStateStore.updateCellular(
+            CustomStatusBarDeviceStateStore.updateCellularPresence(
                 connected = true,
                 level = fallbackLevel,
-                networkType = null,
             )
+            scheduleCellularNetworkTypeRefresh(force = true)
         }
 
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
             val fallbackLevel =
                 StatusBarSignalLevelMapper.cellularFromDbm(networkCapabilities.signalStrength)
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && fallbackLevel != null) {
-                CustomStatusBarDeviceStateStore.updateCellularSignal(fallbackLevel)
+                CustomStatusBarDeviceStateStore.updateCellularPresence(
+                    connected = true,
+                    level = fallbackLevel,
+                )
             }
+            scheduleCellularNetworkTypeRefresh()
         }
 
         override fun onLost(network: Network) {
@@ -422,27 +431,42 @@ class SystemEventMonitor(
         runCatching { manager.signalStrength }
             .getOrNull()
             ?.let { signal ->
-                CustomStatusBarDeviceStateStore.updateCellular(
+                CustomStatusBarDeviceStateStore.updateCellularPresence(
                     connected = true,
                     level = StatusBarSignalLevelMapper.cellularFromPlatformLevel(signal.level),
-                    networkType = null,
                 )
+                scheduleCellularNetworkTypeRefresh(force = true)
             }
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || cellularSignalCallback != null) return
 
         val callback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
             override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
-                CustomStatusBarDeviceStateStore.updateCellular(
+                CustomStatusBarDeviceStateStore.updateCellularPresence(
                     connected = true,
                     level = StatusBarSignalLevelMapper.cellularFromPlatformLevel(signalStrength.level),
-                    networkType = null,
                 )
+                scheduleCellularNetworkTypeRefresh()
             }
         }
         runCatching {
             manager.registerTelephonyCallback(context.mainExecutor, callback)
             cellularSignalCallback = callback
+        }
+    }
+
+    private fun scheduleCellularNetworkTypeRefresh(force: Boolean = false) {
+        val now = SystemClock.elapsedRealtime()
+        if (!force && now - lastCellularNetworkTypeRefreshAt < CELLULAR_TYPE_REFRESH_MIN_INTERVAL_MS) {
+            return
+        }
+        if (cellularNetworkTypeRefreshJob?.isActive == true) return
+
+        cellularNetworkTypeRefreshJob = scope.launch {
+            delay(CELLULAR_TYPE_REFRESH_SETTLE_MS)
+            val networkType = cellularNetworkTypeSource.snapshot() ?: return@launch
+            lastCellularNetworkTypeRefreshAt = SystemClock.elapsedRealtime()
+            CustomStatusBarDeviceStateStore.updateCellularNetworkType(networkType)
         }
     }
 
@@ -518,6 +542,7 @@ class SystemEventMonitor(
         connectivityManager?.registerNetworkCallback(wifiRequest(), wifiCallback)
         connectivityManager?.registerNetworkCallback(cellularRequest(), cellularCallback)
         registerCellularSignalStrength()
+        scheduleCellularNetworkTypeRefresh(force = true)
         connectivityManager?.registerNetworkCallback(vpnRequest(), vpnCallback)
 
         runCatching {
@@ -546,6 +571,8 @@ class SystemEventMonitor(
         connectivityManager?.unregisterNetworkCallback(wifiCallback)
         connectivityManager?.unregisterNetworkCallback(cellularCallback)
         unregisterCellularSignalStrength()
+        cellularNetworkTypeRefreshJob?.cancel()
+        cellularNetworkTypeRefreshJob = null
         connectivityManager?.unregisterNetworkCallback(vpnCallback)
     }
 
@@ -865,6 +892,8 @@ class SystemEventMonitor(
 
     private companion object {
         const val LOCK_POLL_INTERVAL_MS = 150L
+        const val CELLULAR_TYPE_REFRESH_SETTLE_MS = 180L
+        const val CELLULAR_TYPE_REFRESH_MIN_INTERVAL_MS = 3_000L
         const val GLOBAL_ADB_WIFI_ENABLED = "adb_wifi_enabled"
         const val ACTION_USB_STATE = "android.hardware.usb.action.USB_STATE"
         const val ACTION_WIFI_AP_STATE_CHANGED = "android.net.wifi.WIFI_AP_STATE_CHANGED"
