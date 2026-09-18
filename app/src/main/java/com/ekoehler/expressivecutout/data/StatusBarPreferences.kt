@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -76,6 +76,8 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
                 statusBarOffsetYDp = prefs[CUSTOM_STATUS_BAR_OFFSET_Y] ?: 0f,
                 batteryPercentageMode =
                     BatteryPercentageMode.fromPersisted(prefs[CUSTOM_STATUS_BAR_BATTERY_PERCENTAGE]),
+                iosBatteryColorMode =
+                    IosBatteryColorMode.fromPersisted(prefs[CUSTOM_STATUS_BAR_IOS_BATTERY_COLOR_MODE]),
             ).sanitized()
         }
 
@@ -129,6 +131,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             prefs[CUSTOM_STATUS_BAR_BATTERY_SCALE] = safe.batteryScale
             prefs[CUSTOM_STATUS_BAR_OFFSET_Y] = safe.statusBarOffsetYDp
             prefs[CUSTOM_STATUS_BAR_BATTERY_PERCENTAGE] = safe.batteryPercentageMode.name
+            prefs[CUSTOM_STATUS_BAR_IOS_BATTERY_COLOR_MODE] = safe.iosBatteryColorMode.name
         }
     }
 
@@ -154,6 +157,8 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         val CUSTOM_STATUS_BAR_OFFSET_Y = floatPreferencesKey("custom_status_bar_offset_y")
         val CUSTOM_STATUS_BAR_BATTERY_PERCENTAGE =
             stringPreferencesKey("custom_status_bar_battery_percentage")
+        val CUSTOM_STATUS_BAR_IOS_BATTERY_COLOR_MODE =
+            stringPreferencesKey("custom_status_bar_ios_battery_color_mode")
     }
 
     /**
@@ -188,6 +193,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             put("customStatusBarBatteryScale", customSettings.batteryScale)
             put("customStatusBarOffsetY", customSettings.statusBarOffsetYDp)
             put("customStatusBarBatteryPercentage", customSettings.batteryPercentageMode.name)
+            put("customStatusBarIosBatteryColorMode", customSettings.iosBatteryColorMode.name)
         }.toString()
     }
 
@@ -227,7 +233,8 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             obj.has("customStatusBarMobileBarStyle") ||
             obj.has("customStatusBarBatteryScale") ||
             obj.has("customStatusBarOffsetY") ||
-            obj.has("customStatusBarBatteryPercentage")
+            obj.has("customStatusBarBatteryPercentage") ||
+            obj.has("customStatusBarIosBatteryColorMode")
         ) {
             var settings = customStatusBarSettings.first()
             if (obj.has("customStatusBarEnabled")) {
@@ -287,6 +294,12 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
                 settings = settings.copy(
                     batteryPercentageMode =
                         BatteryPercentageMode.fromPersisted(obj.optString("customStatusBarBatteryPercentage")),
+                )
+            }
+            if (obj.has("customStatusBarIosBatteryColorMode")) {
+                settings = settings.copy(
+                    iosBatteryColorMode =
+                        IosBatteryColorMode.fromPersisted(obj.optString("customStatusBarIosBatteryColorMode")),
                 )
             }
             setCustomStatusBarSettings(settings)
