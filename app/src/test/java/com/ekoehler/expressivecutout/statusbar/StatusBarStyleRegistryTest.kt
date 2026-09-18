@@ -3,6 +3,8 @@ package com.ekoehler.expressivecutout.statusbar
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
 import com.ekoehler.expressivecutout.data.CustomStatusBarStyle
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -10,14 +12,21 @@ import org.junit.Test
 class StatusBarStyleRegistryTest {
 
     @Test
-    fun `registry contains all M2B styles`() {
-        val ids = StatusBarStyleRegistry.allStyles.map { it.id }.toSet()
+    fun `registry contains all M2B real visual families`() {
+        val ids = StatusBarStyleRegistry.allStyles.map { it.id }
 
-        assertTrue(ids.contains(CustomStatusBarStyle.DEFAULT))
-        assertTrue(ids.contains(CustomStatusBarStyle.PIXEL_15))
-        assertTrue(ids.contains(CustomStatusBarStyle.IOS_27))
-        assertTrue(ids.contains(CustomStatusBarStyle.HYPER_OS))
-        assertTrue(ids.contains(CustomStatusBarStyle.NOTHING_OS))
+        assertEquals(
+            listOf(
+                CustomStatusBarStyle.DEFAULT,
+                CustomStatusBarStyle.IOS_26,
+                CustomStatusBarStyle.IOS_27,
+                CustomStatusBarStyle.PIXEL_15,
+                CustomStatusBarStyle.PIXEL_16_17,
+                CustomStatusBarStyle.HYPER_OS,
+                CustomStatusBarStyle.NOTHING_OS_5,
+            ),
+            ids,
+        )
     }
 
     @Test
@@ -69,5 +78,40 @@ class StatusBarStyleRegistryTest {
 
             assertTrue(plan.respectsIslandExclusion)
         }
+    }
+
+    @Test
+    fun `battery ownership differs by family`() {
+        val pixel1617 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.PIXEL_16_17)
+        val hyperOs = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.HYPER_OS)
+        val nothing = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.NOTHING_OS_5)
+        val ios26 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.IOS_26)
+        val ios27 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.IOS_27)
+
+        assertEquals(StatusBarBatteryVisualMode.NUMERIC_CAPSULE_PROMINENT, pixel1617.batteryVisualMode)
+        assertEquals(StatusBarBatteryVisualMode.NUMERIC_CAPSULE_COMPACT, hyperOs.batteryVisualMode)
+        assertEquals(StatusBarBatteryVisualMode.SOLID_CAPSULE_MINIMAL, nothing.batteryVisualMode)
+        assertEquals(StatusBarBatteryVisualMode.IOS_OUTLINE_FILL, ios26.batteryVisualMode)
+        assertEquals(StatusBarBatteryVisualMode.IOS_SOLID_CAPSULE, ios27.batteryVisualMode)
+        assertTrue(pixel1617.batteryVisualMode.usesInternalPercentage)
+        assertTrue(hyperOs.batteryVisualMode.usesInternalPercentage)
+        assertFalse(nothing.batteryVisualMode.usesInternalPercentage)
+    }
+
+    @Test
+    fun `signal and network renderers keep families visually distinct`() {
+        val ios26 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.IOS_26)
+        val ios27 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.IOS_27)
+        val pixel15 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.PIXEL_15)
+        val pixel1617 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.PIXEL_16_17)
+        val hyperOs = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.HYPER_OS)
+        val nothing = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.NOTHING_OS_5)
+
+        assertNotEquals(ios26.signalVisualMode, ios27.signalVisualMode)
+        assertNotEquals(pixel15.signalVisualMode, pixel1617.signalVisualMode)
+        assertNotEquals(pixel1617.signalVisualMode, nothing.signalVisualMode)
+        assertNotEquals(pixel1617.signalVisualMode, hyperOs.signalVisualMode)
+        assertEquals(StatusBarNetworkLabelMode.PROMINENT, pixel1617.networkLabelMode)
+        assertEquals(StatusBarNetworkLabelMode.HIDDEN, nothing.networkLabelMode)
     }
 }
