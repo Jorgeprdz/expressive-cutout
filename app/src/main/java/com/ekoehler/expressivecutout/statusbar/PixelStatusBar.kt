@@ -266,6 +266,22 @@ internal fun PixelWifiGlyph(
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     val glyphProfile = profile ?: StatusBarStyleRegistry.defaultStyle.wifi
+    val measured = when (visualMode) {
+        StatusBarWifiVisualMode.IOS_ARCS -> IosStatusBarIconGeometry.ios26.wifi
+        StatusBarWifiVisualMode.IOS_BOLD_ARCS -> IosStatusBarIconGeometry.ios27.wifi
+        else -> null
+    }
+    if (measured != null) {
+        IosMeasuredWifiGlyph(
+            geometry = measured,
+            tint = tint,
+            sizeDp = glyphProfile.sizeDp,
+            scale = safeScale,
+            modifier = modifier,
+        )
+        return
+    }
+
     val strengths = PixelStatusBarGeometry.wifiStrengths(level)
     Canvas(
         modifier = modifier.size((glyphProfile.sizeDp * safeScale).dp),
@@ -328,6 +344,23 @@ internal fun PixelMobileGlyph(
     val safeScale = scale.coerceAtLeast(0.1f)
     val glyphWidthDp = profile?.widthDp ?: PixelStatusBarPresentation.mobileSignalWidthDp(style, 1f)
     val glyphHeightDp = profile?.heightDp ?: PixelStatusBarGeometry.MOBILE_HEIGHT_DP
+    val measured = when (visualMode) {
+        StatusBarSignalVisualMode.IOS_ROUNDED_BARS -> IosStatusBarIconGeometry.ios26.signal
+        StatusBarSignalVisualMode.IOS_BOLD_PILLS -> IosStatusBarIconGeometry.ios27.signal
+        else -> null
+    }
+    if (measured != null) {
+        IosMeasuredSignalGlyph(
+            geometry = measured,
+            tint = tint,
+            widthDp = glyphWidthDp,
+            heightDp = glyphHeightDp,
+            scale = safeScale,
+            modifier = modifier,
+        )
+        return
+    }
+
     Canvas(
         modifier = modifier
             .width((glyphWidthDp * safeScale).dp)
@@ -398,6 +431,23 @@ internal fun PixelBatteryGlyph(
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     val glyphProfile = profile ?: StatusBarStyleRegistry.defaultStyle.battery
+    val measured = when (visualMode) {
+        StatusBarBatteryVisualMode.IOS_OUTLINE_FILL -> IosStatusBarIconGeometry.ios26.battery
+        StatusBarBatteryVisualMode.IOS_SOLID_CAPSULE -> IosStatusBarIconGeometry.ios27.battery
+        else -> null
+    }
+    if (measured != null) {
+        IosMeasuredBatteryGlyph(
+            geometry = measured,
+            tint = tint,
+            widthDp = glyphProfile.widthDp,
+            heightDp = glyphProfile.heightDp,
+            scale = safeScale,
+            modifier = modifier,
+        )
+        return
+    }
+
     val fraction = PixelStatusBarGeometry.batteryFraction(level)
     Canvas(
         modifier = modifier
@@ -517,6 +567,3 @@ private fun StatusBarStyleTextWeight.toFontWeight(): FontWeight = when (this) {
     StatusBarStyleTextWeight.MEDIUM -> FontWeight.Medium
     StatusBarStyleTextWeight.SEMIBOLD -> FontWeight.SemiBold
 }
-
-private fun Color.contrastColor(): Color =
-    if (red * 0.299f + green * 0.587f + blue * 0.114f > 0.55f) Color.Black else Color.White
