@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 /** The segmented row's fixed height, and the gap that separates one segment from the next. */
 private val SEGMENT_HEIGHT = 40.dp
 private val SEGMENT_GAP = 4.dp
-private val MIN_READABLE_SEGMENT_WIDTH = 92.dp
+private val MIN_READABLE_SEGMENT_WIDTH = 128.dp
 
 /**
  * A Material 3 "expressive" single-choice selector: a rounded container with a filled pill that
@@ -118,7 +118,7 @@ fun ExpressiveSegmentedRow(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null,
                                 )
-                                .padding(horizontal = 8.dp),
+                                .padding(horizontal = 12.dp),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -126,7 +126,7 @@ fun ExpressiveSegmentedRow(
                                 color = contentColor,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                                overflow = TextOverflow.Clip,
                             )
                         }
                         if (index < count - 1) {
