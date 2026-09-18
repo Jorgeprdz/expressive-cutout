@@ -29,8 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
 import com.ekoehler.expressivecutout.data.PixelStatusBarScale
-import kotlin.math.min
-import kotlin.math.roundToInt
 
 /**
  * Pixel-style visual layer. It consumes only normalized state/layout/settings and never queries
@@ -99,14 +97,31 @@ internal fun PixelStatusBarLayer(
                 (right.width - 16.dp.roundToPx()).coerceAtLeast(0).toDp().value
             }
             val networkAvailable = state.cellular.connected && state.cellular.networkType != null
+            val optical = PixelStatusBarOpticalMetrics.resolve(scales.systemIcons)
+            val batteryOptical = PixelStatusBarOpticalMetrics.resolve(scales.battery)
 
             fun widthDp(includeNetwork: Boolean, includePercentage: Boolean): Float {
                 val widths = buildList {
-                    if (state.cellular.connected) add(15f * scales.systemIcons)
-                    if (includeNetwork && networkAvailable) add(24f * scales.systemIcons)
-                    if (state.wifi.connected) add(15f * scales.systemIcons)
-                    add(22f * scales.battery)
-                    if (includePercentage && percentage != null) add(30f * scales.systemIcons)
+                    if (state.cellular.connected) {
+                        add(PixelStatusBarGeometry.MOBILE_SIZE_DP * scales.systemIcons)
+                    }
+                    if (includeNetwork && networkAvailable) {
+                        state.cellular.networkType?.let {
+                            add(PixelStatusBarPresentation.networkTypeWidthDp(it, scales.systemIcons))
+                        }
+                    }
+                    if (state.wifi.connected) {
+                        add(PixelStatusBarGeometry.WIFI_SIZE_DP * scales.systemIcons)
+                    }
+                    add(PixelStatusBarGeometry.BATTERY_WIDTH_DP * scales.battery)
+                    if (includePercentage && percentage != null) {
+                        add(
+                            PixelStatusBarPresentation.batteryPercentageWidthDp(
+                                percentage,
+                                scales.systemIcons,
+                            ),
+                        )
+                    }
                 }
                 val gaps = (widths.size - 1).coerceAtLeast(0)
                 return widths.sum() + gaps * safe.systemIconsSpacingDp
@@ -131,7 +146,8 @@ internal fun PixelStatusBarLayer(
 
             val contentWidthDp = widthDp(showNetwork, showPercentage)
                 .coerceAtMost(availableDp.coerceAtLeast(0f))
-            val contentHeightDp = 26f * maxOf(scales.systemIcons, scales.battery)
+            val contentHeightDp =
+                PixelStatusBarGeometry.RIGHT_GROUP_HEIGHT_DP * maxOf(scales.systemIcons, scales.battery)
             val placed = StatusBarSafePlacement.placeRight(
                 region = right,
                 contentWidth = with(density) { contentWidthDp.dp.roundToPx() },
@@ -164,9 +180,10 @@ internal fun PixelStatusBarLayer(
                                     StatusBarNetworkType.FIVE_G -> "5G"
                                 },
                                 color = rightTint,
-                                fontSize = (10f * scales.systemIcons).sp,
+                                fontSize = (9.25f * scales.systemIcons).sp,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1,
+                                modifier = Modifier.offset(y = optical.networkTypeYDp.dp),
                             )
                         }
                     }
@@ -174,6 +191,7 @@ internal fun PixelStatusBarLayer(
                         level = state.cellular.level,
                         tint = rightTint,
                         scale = scales.systemIcons,
+                        modifier = Modifier.offset(y = optical.mobileYDp.dp),
                     )
                 }
                 if (state.wifi.connected) {
@@ -181,6 +199,7 @@ internal fun PixelStatusBarLayer(
                         level = state.wifi.level,
                         tint = rightTint,
                         scale = scales.systemIcons,
+                        modifier = Modifier.offset(y = optical.wifiYDp.dp),
                     )
                 }
                 PixelBatteryGlyph(
@@ -188,14 +207,16 @@ internal fun PixelStatusBarLayer(
                     charging = state.battery.charging,
                     tint = rightTint,
                     scale = scales.battery,
+                    modifier = Modifier.offset(y = batteryOptical.batteryYDp.dp),
                 )
                 if (showPercentage && percentage != null) {
                     Text(
                         text = percentage,
                         color = rightTint,
-                        fontSize = (9.5f * scales.systemIcons).sp,
+                        fontSize = (9.25f * scales.systemIcons).sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
+                        modifier = Modifier.offset(y = optical.percentageYDp.dp),
                     )
                 }
             }
@@ -212,28 +233,44 @@ internal fun PixelWifiGlyph(
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     val strengths = PixelStatusBarGeometry.wifiStrengths(level)
-    Canvas(modifier = modifier.size((15f * safeScale).dp)) {
-        val side = min(size.width, size.height)
-        val cx = size.width / 2f
-        val cy = size.height * 0.63f
-        val stroke = maxOf((1.15f * safeScale).dp.toPx(), side * 0.085f)
-        val radii = listOf(0.20f, 0.36f, 0.52f)
-        radii.forEachIndexed { index, fraction ->
-            val radius = side * fraction
+    Canvas(
+        modifier = modifier.size((PixelStatusBarGeometry.WIFI_SIZE_DP * safeScale).dp),
+    ) {
+        val side = minOf(size.width, size.height)
+        val geometry = PixelStatusBarGeometry.wifiGlyph(side)
+        geometry.radii.forEachIndexed { index, radius ->
             drawArc(
-                color = tint.copy(alpha = if (strengths[index + 1] > 0f) 1f else 0.22f),
-                startAngle = 220f,
-                sweepAngle = 100f,
+                color = tint.copy(
+                    alpha = if (strengths[index + 1] > 0f) {
+                        1f
+                    } else {
+                        PixelStatusBarGeometry.INACTIVE_ALPHA
+                    },
+                ),
+                startAngle = geometry.startAngle,
+                sweepAngle = geometry.sweepAngle,
                 useCenter = false,
-                topLeft = Offset(cx - radius, cy - radius),
+                topLeft = Offset(
+                    geometry.centerX - radius,
+                    geometry.centerY - radius,
+                ),
                 size = Size(radius * 2f, radius * 2f),
-                style = Stroke(width = stroke, cap = StrokeCap.Round),
+                style = Stroke(
+                    width = geometry.strokeWidth,
+                    cap = StrokeCap.Round,
+                ),
             )
         }
         drawCircle(
-            color = tint.copy(alpha = if (strengths[0] > 0f) 1f else 0.22f),
-            radius = maxOf(stroke * 0.62f, side * 0.055f),
-            center = Offset(cx, size.height * 0.79f),
+            color = tint.copy(
+                alpha = if (strengths[0] > 0f) {
+                    1f
+                } else {
+                    PixelStatusBarGeometry.INACTIVE_ALPHA
+                },
+            ),
+            radius = geometry.dotRadius,
+            center = Offset(geometry.dotX, geometry.dotY),
         )
     }
 }
@@ -247,23 +284,22 @@ internal fun PixelMobileGlyph(
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     val strengths = PixelStatusBarGeometry.mobileStrengths(level)
-    Canvas(modifier = modifier.size((15f * safeScale).dp)) {
-        val w = size.width
-        val h = size.height
-        val left = w * 0.13f
-        val bottom = h * 0.86f
-        val availableW = w * 0.74f
-        val gap = availableW * 0.055f
-        val barW = (availableW - gap * 3f) / 4f
-
-        repeat(4) { index ->
-            val barH = h * (0.20f + index * 0.16f)
-            val x = left + index * (barW + gap)
+    Canvas(
+        modifier = modifier.size((PixelStatusBarGeometry.MOBILE_SIZE_DP * safeScale).dp),
+    ) {
+        val geometry = PixelStatusBarGeometry.mobileGlyph(size.width, size.height)
+        geometry.bars.forEachIndexed { index, bar ->
             drawRoundRect(
-                color = tint.copy(alpha = if (strengths[index] > 0f) 1f else 0.22f),
-                topLeft = Offset(x, bottom - barH),
-                size = Size(barW, barH),
-                cornerRadius = CornerRadius(min(barW * 0.36f, (1.8f * safeScale).dp.toPx())),
+                color = tint.copy(
+                    alpha = if (strengths[index] > 0f) {
+                        1f
+                    } else {
+                        PixelStatusBarGeometry.INACTIVE_ALPHA
+                    },
+                ),
+                topLeft = Offset(bar.left, bar.top),
+                size = Size(bar.width, bar.height),
+                cornerRadius = CornerRadius(bar.cornerRadius),
             )
         }
     }
@@ -281,47 +317,46 @@ internal fun PixelBatteryGlyph(
     val fraction = PixelStatusBarGeometry.batteryFraction(level)
     Canvas(
         modifier = modifier
-            .width((22f * safeScale).dp)
-            .height((12f * safeScale).dp),
+            .width((PixelStatusBarGeometry.BATTERY_WIDTH_DP * safeScale).dp)
+            .height((PixelStatusBarGeometry.BATTERY_HEIGHT_DP * safeScale).dp),
     ) {
-        val terminalWidth = (1.5f * safeScale).dp.toPx()
-        val bodyWidth = size.width - terminalWidth - (1f * safeScale).dp.toPx()
-        val stroke = (1.2f * safeScale).dp.toPx()
-        val radius = (2.2f * safeScale).dp.toPx()
+        val geometry = PixelStatusBarGeometry.batteryGlyph(
+            width = size.width,
+            height = size.height,
+            level = level,
+        )
 
         drawRoundRect(
             color = tint,
-            topLeft = Offset(0f, stroke / 2f),
-            size = Size(bodyWidth, size.height - stroke),
-            cornerRadius = CornerRadius(radius),
-            style = Stroke(width = stroke),
+            topLeft = Offset(geometry.body.left, geometry.body.top),
+            size = Size(geometry.body.width, geometry.body.height),
+            cornerRadius = CornerRadius(geometry.bodyCornerRadius),
+            style = Stroke(width = geometry.outlineStroke),
         )
         drawRoundRect(
-            color = tint.copy(alpha = 0.8f),
-            topLeft = Offset(bodyWidth + (0.7f * safeScale).dp.toPx(), size.height * 0.32f),
-            size = Size(terminalWidth, size.height * 0.36f),
-            cornerRadius = CornerRadius(terminalWidth / 2f),
+            color = tint.copy(alpha = 0.9f),
+            topLeft = Offset(geometry.terminal.left, geometry.terminal.top),
+            size = Size(geometry.terminal.width, geometry.terminal.height),
+            cornerRadius = CornerRadius(geometry.terminalCornerRadius),
         )
 
-        val inset = (2.2f * safeScale).dp.toPx()
-        val fillWidth = (bodyWidth - inset * 2f).coerceAtLeast(0f) * fraction
-        if (fillWidth > 0f) {
+        if (geometry.fill.width > 0f && geometry.fill.height > 0f) {
             drawRoundRect(
                 color = tint,
-                topLeft = Offset(inset, inset),
-                size = Size(fillWidth, (size.height - inset * 2f).coerceAtLeast(0f)),
-                cornerRadius = CornerRadius((1.2f * safeScale).dp.toPx()),
+                topLeft = Offset(geometry.fill.left, geometry.fill.top),
+                size = Size(geometry.fill.width, geometry.fill.height),
+                cornerRadius = CornerRadius(
+                    minOf(geometry.fillCornerRadius, geometry.fill.width / 2f),
+                ),
             )
         }
 
-        if (charging) {
+        if (charging && geometry.bolt.size >= 3) {
             val bolt = androidx.compose.ui.graphics.Path().apply {
-                moveTo(bodyWidth * 0.55f, size.height * 0.18f)
-                lineTo(bodyWidth * 0.38f, size.height * 0.54f)
-                lineTo(bodyWidth * 0.52f, size.height * 0.54f)
-                lineTo(bodyWidth * 0.42f, size.height * 0.84f)
-                lineTo(bodyWidth * 0.68f, size.height * 0.44f)
-                lineTo(bodyWidth * 0.54f, size.height * 0.44f)
+                moveTo(geometry.bolt.first().x, geometry.bolt.first().y)
+                geometry.bolt.drop(1).forEach { point ->
+                    lineTo(point.x, point.y)
+                }
                 close()
             }
             drawPath(
