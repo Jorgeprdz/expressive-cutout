@@ -7,8 +7,9 @@ import org.junit.Test
 class StatusBarRightGroupVisibilityPolicyTest {
 
     @Test
-    fun `shows both network and outside percentage when both fit`() {
+    fun `shows both mobile network and outside percentage on data when both fit`() {
         val result = StatusBarRightGroupVisibilityPolicy.resolve(
+            wifiConnected = false,
             networkAvailable = true,
             outsidePercentageAvailable = true,
             bothFit = true,
@@ -21,8 +22,24 @@ class StatusBarRightGroupVisibilityPolicyTest {
     }
 
     @Test
-    fun `prioritizes mobile network over outside percentage when compact`() {
+    fun `hides mobile network while wifi is connected`() {
         val result = StatusBarRightGroupVisibilityPolicy.resolve(
+            wifiConnected = true,
+            networkAvailable = true,
+            outsidePercentageAvailable = true,
+            bothFit = true,
+            networkFitsWithoutPercentage = true,
+            percentageFitsWithoutNetwork = true,
+        )
+
+        assertFalse(result.showNetwork)
+        assertTrue(result.showPercentage)
+    }
+
+    @Test
+    fun `prioritizes mobile network over outside percentage on data when compact`() {
+        val result = StatusBarRightGroupVisibilityPolicy.resolve(
+            wifiConnected = false,
             networkAvailable = true,
             outsidePercentageAvailable = true,
             bothFit = false,
@@ -37,6 +54,7 @@ class StatusBarRightGroupVisibilityPolicyTest {
     @Test
     fun `falls back to percentage only when network cannot fit`() {
         val result = StatusBarRightGroupVisibilityPolicy.resolve(
+            wifiConnected = false,
             networkAvailable = true,
             outsidePercentageAvailable = true,
             bothFit = false,
