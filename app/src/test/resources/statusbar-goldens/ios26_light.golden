@@ -1,9 +1,9 @@
-scene=status-bar-golden-v1
+scene=status-bar-golden-v2
 canvas=240x36 background=light
 style=IOS_26 display=iOS 26 signature=ios26-outline
 clock=9:41 weight=MEDIUM sizeSp=14.20
 network=5G mode=DISCREET weight=MEDIUM sizeSp=9.20
-signal=IOS_ROUNDED_BARS level=4 active=4 geometry=classic-rounded-bars
-wifi=IOS_ARCS level=4 arcs=3 stroke=medium-rounded
-battery=IOS_OUTLINE_FILL level=67 charging=false numeric=false shape=outline-fill
+ios26.signal=viewBox=243x159 bars=[0.000,0.585,0.181,0.390,r0.250;0.272,0.390,0.185,0.585,r0.250;0.551,0.195,0.177,0.780,r0.260;0.823,0.000,0.177,0.975,r0.260] baseline=aligned
+ios26.wifi=viewBox=217x171 outer=0.000,0.000,1.000,0.392,stroke=0.140 middle=0.171,0.304,0.654,0.304,stroke=0.143 dot=0.346,0.591,0.309,0.310,shape=classic-teardrop
+ios26.battery=viewBox=342x164 body=0.000,0.000,0.915,1.000,r0.255 inner=0.070,0.146,0.775,0.707,r0.285 terminal=0.947,0.366,0.053,0.299,r0.500 mode=outline-fill bodyColor=#000000 terminalColor=#989898 outlineColor=#A0A0A0
 spacingDp=4.20 edgeInsetDp=8.00
