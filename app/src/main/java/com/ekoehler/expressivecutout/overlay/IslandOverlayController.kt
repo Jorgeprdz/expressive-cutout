@@ -289,6 +289,10 @@ class IslandOverlayController(
     private var previewPinned = false
     private var previewExpanded = false
     private var expanded = false
+        set(value) {
+            field = value
+            expandedState.value = value
+        }
     /**
      * True while a media session is actively playing; keeps the music cutout pinned up (no
      * auto-dismiss) for as long as playback lasts.

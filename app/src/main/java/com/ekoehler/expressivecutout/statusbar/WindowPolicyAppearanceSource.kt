@@ -22,7 +22,7 @@ import rikka.shizuku.SystemServiceHelper
 internal object WindowPolicyAppearanceParser {
 
     private val regionPattern = Regex(
-        """AppearanceRegion\{([^}]]*?)bounds=\[\s*(-?\d+)\s*,\s*(-?\d+)\s*]\[\s*(-?\d+)\s*,\s*(-?\d+)\s*]}""",
+        """AppearanceRegion\{([^}]*)bounds=\[\s*(-?\d+)\s*,\s*(-?\d+)\s*]\[\s*(-?\d+)\s*,\s*(-?\d+)\s*]}""",
     )
 
     fun parse(raw: String): SystemBarAppearanceSnapshot? {
