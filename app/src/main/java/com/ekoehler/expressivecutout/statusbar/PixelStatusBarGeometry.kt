@@ -71,7 +71,7 @@ internal object PixelStatusBarGeometry {
     const val BATTERY_WIDTH_DP = 21.5f
     const val BATTERY_HEIGHT_DP = 11.5f
     const val RIGHT_GROUP_HEIGHT_DP = 24f
-    const val INACTIVE_ALPHA = 0.24f
+    const val INACTIVE_ALPHA = 0.22f
 
     fun wifiStrengths(level: Int?): List<Float> {
         val active = level?.coerceIn(0, 4) ?: 0
@@ -85,18 +85,18 @@ internal object PixelStatusBarGeometry {
     fun wifiGlyph(side: Float): PixelWifiGlyphGeometry {
         val safeSide = side.coerceAtLeast(0.1f)
         val centerX = safeSide * 0.50f
-        val centerY = safeSide * 0.55f
+        val centerY = safeSide * 0.63f
         return PixelWifiGlyphGeometry(
             side = safeSide,
             centerX = centerX,
             centerY = centerY,
-            radii = listOf(0.18f, 0.29f, 0.40f).map { safeSide * it },
-            strokeWidth = safeSide * 0.08f,
-            startAngle = 222f,
-            sweepAngle = 96f,
+            radii = listOf(0.20f, 0.36f, 0.52f).map { safeSide * it },
+            strokeWidth = safeSide * 0.085f,
+            startAngle = 220f,
+            sweepAngle = 100f,
             dotX = centerX,
             dotY = safeSide * 0.80f,
-            dotRadius = safeSide * 0.06f,
+            dotRadius = maxOf(safeSide * 0.055f, safeSide * 0.085f * 0.62f),
         )
     }
 
@@ -109,13 +109,13 @@ internal object PixelStatusBarGeometry {
     fun mobileGlyph(width: Float, height: Float): PixelMobileGlyphGeometry {
         val safeWidth = width.coerceAtLeast(0.1f)
         val safeHeight = height.coerceAtLeast(0.1f)
-        val left = safeWidth * 0.14f
-        val bottom = safeHeight * 0.84f
-        val availableWidth = safeWidth * 0.72f
-        val gap = availableWidth * 0.075f
+        val left = safeWidth * 0.13f
+        val bottom = safeHeight * 0.86f
+        val availableWidth = safeWidth * 0.74f
+        val gap = availableWidth * 0.055f
         val barWidth = ((availableWidth - gap * 3f) / 4f).coerceAtLeast(0f)
-        val heights = listOf(0.22f, 0.38f, 0.54f, 0.70f).map { safeHeight * it }
-        val cornerRadius = min(barWidth * 0.42f, safeHeight * 0.075f)
+        val heights = listOf(0.20f, 0.36f, 0.52f, 0.68f).map { safeHeight * it }
+        val cornerRadius = min(barWidth * 0.36f, safeHeight * 0.12f)
         val bars = heights.mapIndexed { index, barHeight ->
             val x = left + index * (barWidth + gap)
             PixelMobileBarGeometry(
