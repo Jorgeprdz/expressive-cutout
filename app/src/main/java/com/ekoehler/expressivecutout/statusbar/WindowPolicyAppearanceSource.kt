@@ -5,16 +5,16 @@ import android.util.Log
 import com.ekoehler.expressivecutout.system.ShizukuState
 import com.ekoehler.expressivecutout.system.ShizukuStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.withContext
 
 /**
- * Parses the stable policy fields that Android's WindowManager dumps for the status bar.
- *
- * Android 16 DisplayPolicy prints both mLastAppearance and mLastStatusBarAppearanceRegions from
- * the same state it reports to SystemUI. We intentionally consume only those fields instead of
- * depending on unrelated WindowManager text.
+ * Parses the stable fields Android's WindowManager exposes for status bar appearance. The source
+ * accepts both policy dumps and full window dumps because different OEM builds print mLastAppearance
+ * under slightly different WindowManager sections.
  */
 internal object WindowPolicyAppearanceParser {
 
@@ -52,27 +52,36 @@ internal object WindowPolicyAppearanceParser {
 }
 
 /**
- * Real one-shot appearance source backed by WindowManager through Shizuku.
+ * Real appearance source backed by WindowManager through Shizuku.
  *
- * There is deliberately no polling flow: foreground/window events owned by the accessibility
- * service call snapshot() to reconcile. The wrapped binder performs the privileged dump as the
- * Shizuku shell identity; any failure returns null so Auto mode falls back to the system theme.
+ * Live changes are event-driven via the UserService's WindowManager logcat monitor. Snapshot still
+ * exists for accessibility focus reconciliation and for safe fallback if the live stream is not yet
+ * available.
  */
 internal class ShizukuWindowAppearanceSource(
     context: Context,
-    transport: WindowPolicyDumpTransport = ShizukuUserServiceWindowPolicyDumpTransport(context),
+    private val transport: WindowPolicyDumpTransport = ShizukuUserServiceWindowPolicyDumpTransport(context),
 ) : SystemBarAppearanceSource {
 
     private val reader = WindowPolicySnapshotReader(transport)
 
-    override val changes: Flow<SystemBarAppearanceSnapshot> = emptyFlow()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val changes: Flow<SystemBarAppearanceSnapshot> = ShizukuState.status.flatMapLatest { status ->
+        if (status == ShizukuStatus.READY) {
+            Log.d(TAG, "AUTO_APPEARANCE monitor=ready shizuku=READY")
+            transport.changes()
+        } else {
+            Log.d(TAG, "AUTO_APPEARANCE monitor=paused shizuku=$status")
+            emptyFlow()
+        }
+    }
 
     override suspend fun snapshot(): SystemBarAppearanceSnapshot? = withContext(Dispatchers.IO) {
         val shizuku = ShizukuState.status.value
         if (shizuku != ShizukuStatus.READY) {
             Log.d(
                 TAG,
-                "AUTO_APPEARANCE source=window_policy shizuku=$shizuku rawAvailable=false " +
+                "AUTO_APPEARANCE source=window shizuku=$shizuku rawAvailable=false " +
                     "rawLength=0 parserSuccess=false reason=shizuku_not_ready",
             )
             return@withContext null
@@ -84,7 +93,7 @@ internal class ShizukuWindowAppearanceSource(
             val snapshot = read.snapshot
             Log.d(
                 TAG,
-                "AUTO_APPEARANCE source=window_policy shizuku=READY " +
+                "AUTO_APPEARANCE source=window shizuku=READY " +
                     "transport=user_service rawAvailable=${!raw.isNullOrBlank()} " +
                     "rawLength=${raw?.length ?: 0} " +
                     "globalAppearance=${snapshot?.globalAppearance} " +
@@ -95,7 +104,7 @@ internal class ShizukuWindowAppearanceSource(
         }.onFailure { error ->
             Log.d(
                 TAG,
-                "AUTO_APPEARANCE source=window_policy shizuku=READY " +
+                "AUTO_APPEARANCE source=window shizuku=READY " +
                     "transport=user_service rawAvailable=false parserSuccess=false " +
                     "reason=${throwableSummary(error)}",
             )
