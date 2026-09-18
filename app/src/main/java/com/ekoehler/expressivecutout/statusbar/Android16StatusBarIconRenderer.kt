@@ -40,19 +40,21 @@ internal fun Android16MeasuredSignalGlyph(
             .height((heightDp * safeScale).dp),
     ) {
         val active = dynamicLevel(level, geometry.bars.size)
+        val activeColor = pixelActiveColor(tint)
+        val inactiveColor = pixelInactiveColor(tint, inactiveAlpha)
         val box = fitAndroid16Box(geometry.aspectRatio)
         geometry.bars.forEachIndexed { index, bar ->
             drawAndroid16SignalPart(
                 bar = bar,
                 box = box,
-                color = android16ActiveColor(tint).copy(alpha = if (index < active) 1f else inactiveAlpha),
+                color = if (index < active) activeColor else inactiveColor,
             )
         }
         geometry.lowerIndicators.forEachIndexed { index, bar ->
             drawAndroid16SignalPart(
                 bar = bar,
                 box = box,
-                color = android16ActiveColor(tint).copy(alpha = if (index < active) 0.72f else inactiveAlpha * 0.80f),
+                color = if (index < active) activeColor.copy(alpha = 0.62f) else inactiveColor.copy(alpha = inactiveColor.alpha * 0.70f),
             )
         }
     }
@@ -71,22 +73,22 @@ internal fun Android16MeasuredWifiGlyph(
     val safeScale = scale.coerceAtLeast(0.1f)
     Canvas(modifier = modifier.size((sizeDp * safeScale).dp)) {
         val activeParts = wifiActiveParts(level)
-        val active = android16ActiveColor(tint)
-        val inactive = android16InactiveColor(tint).copy(alpha = if (tint == Color.White) 1f else inactiveAlpha)
+        val active = pixelActiveColor(tint)
+        val inactive = pixelInactiveColor(tint, inactiveAlpha)
         val box = fitAndroid16Box(geometry.aspectRatio)
         drawAndroid16Arc(
             visibleRect = geometry.outer.toRect(box),
             stroke = box.height * geometry.outerStrokeToHeight,
-            color = if (activeParts >= 3) active.copy(alpha = 0.86f) else inactive,
-            startAngle = 205f,
-            sweepAngle = 130f,
+            color = if (activeParts >= 3) active.copy(alpha = 0.94f) else inactive,
+            startAngle = 207f,
+            sweepAngle = 126f,
         )
         drawAndroid16Arc(
             visibleRect = geometry.middle.toRect(box),
             stroke = box.height * geometry.middleStrokeToHeight,
             color = if (activeParts >= 2) active else inactive,
-            startAngle = 208f,
-            sweepAngle = 124f,
+            startAngle = 210f,
+            sweepAngle = 120f,
         )
         val dot = geometry.dot.toRect(box)
         drawCircle(
@@ -121,18 +123,23 @@ internal fun Android16MeasuredBatteryGlyph(
         val terminal = geometry.terminal.toRect(box)
         val bodyRadius = body.height * geometry.bodyRadiusToHeight
         val terminalRadius = terminal.width * geometry.terminalRadiusToWidth
-        val shell = if (tint == Color.White) Color(0xFF99A1AA) else tint.copy(alpha = 0.42f)
+        val shell = pixelBatteryShell(tint)
         val fillColor = when {
             charging -> Color(0xFF30D158)
             safeLevel < geometry.redThreshold -> Color(0xFFF50003)
             tint == Color.White -> Color(0xFFF0F4F5)
             else -> tint
         }
-        val textColor = if (safeLevel < geometry.redThreshold || charging) Color.White else Color(0xFF1C1D21)
+        val textColor = when {
+            charging || safeLevel < geometry.redThreshold -> Color.White
+            tint == Color.White -> Color(0xFF1C1D21)
+            fraction > 0.52f -> fillColor.contrastColor()
+            else -> tint
+        }
 
         drawRoundRect(
-            color = Color.Black.copy(alpha = 0.18f),
-            topLeft = Offset(body.left, body.top + body.height * 0.04f),
+            color = Color.Black.copy(alpha = if (tint == Color.White) 0.10f else 0.06f),
+            topLeft = Offset(body.left, body.top + body.height * 0.035f),
             size = Size(body.width, body.height),
             cornerRadius = CornerRadius(bodyRadius),
         )
@@ -152,27 +159,28 @@ internal fun Android16MeasuredBatteryGlyph(
             )
         }
         drawRoundRect(
-            color = shell.copy(alpha = 0.90f),
+            color = shell.copy(alpha = 0.92f),
             topLeft = Offset(terminal.left, terminal.top),
             size = Size(terminal.width, terminal.height),
             cornerRadius = CornerRadius(terminalRadius),
         )
 
         val textSize = body.height * when {
-            safeLevel >= 100 -> 0.50f
-            safeLevel < 10 -> 0.68f
-            else -> 0.64f
+            safeLevel >= 100 -> 0.46f
+            safeLevel < 10 -> 0.63f
+            else -> 0.58f
+        }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = textColor.toArgb()
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            this.textSize = textSize
         }
         drawContext.canvas.nativeCanvas.drawText(
             safeLevel.toString(),
             body.left + body.width / 2f,
-            body.top + body.height / 2f - (Paint().ascent() + Paint().descent()) / 2f,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = textColor.toArgb()
-                textAlign = Paint.Align.CENTER
-                typeface = Typeface.DEFAULT_BOLD
-                this.textSize = textSize
-            },
+            body.top + body.height / 2f - (paint.ascent() + paint.descent()) / 2f,
+            paint,
         )
         if (charging) {
             val bolt = Path().apply {
@@ -211,8 +219,8 @@ private fun DrawScope.drawAndroid16Arc(
     startAngle: Float,
     sweepAngle: Float,
 ) {
-    val ovalHeight = visibleRect.height * 2.18f
-    val ovalTop = visibleRect.top + stroke / 2f
+    val ovalHeight = visibleRect.height * 2.05f
+    val ovalTop = visibleRect.top + stroke * 0.42f
     drawArc(
         color = color,
         startAngle = startAngle,
@@ -242,6 +250,10 @@ private fun Android16FractionRect.toRect(box: Rect): Rect = Rect(
     bottom = box.top + box.height * (y + height),
 )
 
-private fun android16ActiveColor(tint: Color): Color = if (tint == Color.White) Color(0xFFF0F4F5) else tint
+private fun pixelActiveColor(tint: Color): Color = if (tint == Color.White) Color(0xFFF0F4F5) else tint
 
-private fun android16InactiveColor(tint: Color): Color = if (tint == Color.White) Color(0xFF7F8D97) else tint
+private fun pixelInactiveColor(tint: Color, alpha: Float): Color =
+    if (tint == Color.White) Color(0xFF7F8D97) else tint.copy(alpha = alpha)
+
+private fun pixelBatteryShell(tint: Color): Color =
+    if (tint == Color.White) Color(0xFF99A1AA) else tint.copy(alpha = 0.18f)
