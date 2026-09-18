@@ -5,15 +5,16 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 /** The segmented row's fixed height, and the gap that separates one segment from the next. */
 private val SEGMENT_HEIGHT = 40.dp
 private val SEGMENT_GAP = 4.dp
+private val MIN_READABLE_SEGMENT_WIDTH = 92.dp
 
 /**
  * A Material 3 "expressive" single-choice selector: a rounded container with a filled pill that
@@ -55,8 +57,18 @@ fun ExpressiveSegmentedRow(
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
     ) {
-        BoxWithConstraints(modifier = Modifier.padding(4.dp)) {
-            val segmentWidth = (maxWidth - SEGMENT_GAP * (count - 1)) / count
+        BoxWithConstraints(
+            modifier = Modifier
+                .padding(4.dp)
+                .horizontalScroll(rememberScrollState()),
+        ) {
+            val naturalSegmentWidth = (maxWidth - SEGMENT_GAP * (count - 1)) / count
+            val segmentWidth = if (count > 4) {
+                maxOf(naturalSegmentWidth, MIN_READABLE_SEGMENT_WIDTH)
+            } else {
+                naturalSegmentWidth
+            }
+            val contentWidth = segmentWidth * count + SEGMENT_GAP * (count - 1)
             val indicatorPosition by animateFloatAsState(
                 targetValue = selectedIndex.toFloat(),
                 animationSpec = spring(
@@ -66,54 +78,60 @@ fun ExpressiveSegmentedRow(
                 label = "segmentIndicator",
             )
 
-            // The sliding selected pill, drawn behind the labels.
             Box(
                 modifier = Modifier
-                    .offset(x = (segmentWidth + SEGMENT_GAP) * indicatorPosition)
-                    .width(segmentWidth)
-                    .height(SEGMENT_HEIGHT)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.primary),
-            )
+                    .width(contentWidth)
+                    .height(SEGMENT_HEIGHT),
+            ) {
+                // The sliding selected pill, drawn behind the labels.
+                Box(
+                    modifier = Modifier
+                        .offset(x = (segmentWidth + SEGMENT_GAP) * indicatorPosition)
+                        .width(segmentWidth)
+                        .height(SEGMENT_HEIGHT)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                )
 
-            Row(modifier = Modifier.fillMaxWidth()) {
-                options.forEachIndexed { index, label ->
-                    val selected = index == selectedIndex
-                    val disabled = index in disabledIndices
-                    val contentColor by animateColorAsState(
-                        targetValue = when {
-                            disabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                            selected -> MaterialTheme.colorScheme.onPrimary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                        label = "segmentContent",
-                    )
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(SEGMENT_HEIGHT)
-                            .selectable(
-                                selected = selected,
-                                enabled = !disabled,
-                                onClick = { onSelect(index) },
-                                role = Role.RadioButton,
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                            )
-                            .padding(horizontal = 8.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = label,
-                            color = contentColor,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                Row(modifier = Modifier.width(contentWidth)) {
+                    options.forEachIndexed { index, label ->
+                        val selected = index == selectedIndex
+                        val disabled = index in disabledIndices
+                        val contentColor by animateColorAsState(
+                            targetValue = when {
+                                disabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                selected -> MaterialTheme.colorScheme.onPrimary
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            label = "segmentContent",
                         )
-                    }
-                    if (index < count - 1) {
-                        androidx.compose.foundation.layout.Spacer(Modifier.width(SEGMENT_GAP))
+                        Box(
+                            modifier = Modifier
+                                .width(segmentWidth)
+                                .height(SEGMENT_HEIGHT)
+                                .selectable(
+                                    selected = selected,
+                                    enabled = !disabled,
+                                    onClick = { onSelect(index) },
+                                    role = Role.RadioButton,
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                )
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = label,
+                                color = contentColor,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (index < count - 1) {
+                            androidx.compose.foundation.layout.Spacer(Modifier.width(SEGMENT_GAP))
+                        }
                     }
                 }
             }
