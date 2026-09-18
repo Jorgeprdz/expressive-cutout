@@ -49,6 +49,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ekoehler.expressivecutout.R
+import com.ekoehler.expressivecutout.data.CustomStatusBarAppearancePreference
 import com.ekoehler.expressivecutout.permissions.Permissions
 import com.ekoehler.expressivecutout.system.ShizukuState
 import com.ekoehler.expressivecutout.system.ShizukuStatus
@@ -80,6 +81,8 @@ internal fun ShizukuScreen(
     onOpenPermissionDot: () -> Unit,
 ) {
     val context = LocalContext.current
+    val customStatusBarEnabled by viewModel.customStatusBarEnabled.collectAsStateWithLifecycle()
+    val customStatusBarAppearance by viewModel.customStatusBarAppearance.collectAsStateWithLifecycle()
     val hideIcons by viewModel.hideNotificationIcons.collectAsStateWithLifecycle()
     val hideSystemInfo by viewModel.hideSystemInfo.collectAsStateWithLifecycle()
     val hideClock by viewModel.hideClock.collectAsStateWithLifecycle()
@@ -122,6 +125,49 @@ internal fun ShizukuScreen(
         }
 
         StatusBarPreview(hideIcons = hideIcons, hideSystem = hideSystemInfo, hideClock = hideClock)
+
+        SettingsToggleCard(
+            shape = RoundedCornerShape(24.dp),
+            title = stringResource(R.string.custom_status_bar_title),
+            description = stringResource(R.string.custom_status_bar_desc),
+            checked = ready && customStatusBarEnabled,
+            onCheckedChange = viewModel::setCustomStatusBarEnabled,
+            enabled = ready,
+        )
+
+        AnimatedVisibility(visible = customStatusBarEnabled) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.custom_status_bar_appearance_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                )
+                ExpressiveSegmentedRow(
+                    options = listOf(
+                        stringResource(R.string.custom_status_bar_auto),
+                        stringResource(R.string.custom_status_bar_light),
+                        stringResource(R.string.custom_status_bar_dark),
+                    ),
+                    selectedIndex = when (customStatusBarAppearance) {
+                        CustomStatusBarAppearancePreference.AUTO -> 0
+                        CustomStatusBarAppearancePreference.LIGHT -> 1
+                        CustomStatusBarAppearancePreference.DARK -> 2
+                    },
+                    onSelect = { index ->
+                        viewModel.setCustomStatusBarAppearance(
+                            when (index) {
+                                1 -> CustomStatusBarAppearancePreference.LIGHT
+                                2 -> CustomStatusBarAppearancePreference.DARK
+                                else -> CustomStatusBarAppearancePreference.AUTO
+                            },
+                        )
+                    },
+                )
+            }
+        }
 
         Text(
             text = stringResource(R.string.status_bar_hide_icons_note),

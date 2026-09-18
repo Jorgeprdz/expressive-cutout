@@ -4,12 +4,19 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
+
+internal enum class CustomStatusBarAppearancePreference {
+    AUTO,
+    LIGHT,
+    DARK,
+}
 
 /** Backing store for the status-bar hiding settings. */
 private val Context.statusBarDataStore: DataStore<Preferences> by preferencesDataStore(name = "status_bar_prefs")
@@ -40,6 +47,17 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         prefs[SILENCE_ALERTS] ?: false
     }
 
+    val customStatusBarEnabled: Flow<Boolean> = context.statusBarDataStore.data.map { prefs ->
+        prefs[CUSTOM_STATUS_BAR_ENABLED] ?: false
+    }
+
+    val customStatusBarAppearance: Flow<CustomStatusBarAppearancePreference> =
+        context.statusBarDataStore.data.map { prefs ->
+            prefs[CUSTOM_STATUS_BAR_APPEARANCE]
+                ?.let { runCatching { CustomStatusBarAppearancePreference.valueOf(it) }.getOrNull() }
+                ?: CustomStatusBarAppearancePreference.AUTO
+        }
+
     suspend fun setHideNotificationIcons(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[HIDE_NOTIFICATION_ICONS] = hide
     }
@@ -56,11 +74,22 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         prefs[SILENCE_ALERTS] = silence
     }
 
+    suspend fun setCustomStatusBarEnabled(enabled: Boolean) = context.statusBarDataStore.edit { prefs ->
+        prefs[CUSTOM_STATUS_BAR_ENABLED] = enabled
+    }
+
+    suspend fun setCustomStatusBarAppearance(appearance: CustomStatusBarAppearancePreference) =
+        context.statusBarDataStore.edit { prefs ->
+            prefs[CUSTOM_STATUS_BAR_APPEARANCE] = appearance.name
+        }
+
     private companion object {
         val HIDE_NOTIFICATION_ICONS = booleanPreferencesKey("hide_notification_icons")
         val HIDE_SYSTEM_INFO = booleanPreferencesKey("hide_system_info")
         val HIDE_CLOCK = booleanPreferencesKey("hide_clock")
         val SILENCE_ALERTS = booleanPreferencesKey("silence_alerts")
+        val CUSTOM_STATUS_BAR_ENABLED = booleanPreferencesKey("custom_status_bar_enabled")
+        val CUSTOM_STATUS_BAR_APPEARANCE = stringPreferencesKey("custom_status_bar_appearance")
     }
 
     /**
@@ -73,11 +102,15 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         val hideSystemInfo = hideSystemInfo.first()
         val hideClock = hideClock.first()
         val silence = silenceAlerts.first()
+        val customEnabled = customStatusBarEnabled.first()
+        val customAppearance = customStatusBarAppearance.first()
         return JSONObject().apply {
             put("hideNotificationIcons", hideIcons)
             put("hideSystemInfo", hideSystemInfo)
             put("hideClock", hideClock)
             put("silenceAlerts", silence)
+            put("customStatusBarEnabled", customEnabled)
+            put("customStatusBarAppearance", customAppearance.name)
         }.toString()
     }
 
@@ -100,6 +133,14 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         }
         if (obj.has("silenceAlerts")) {
             setSilenceAlerts(obj.optBoolean("silenceAlerts", false))
+        }
+        if (obj.has("customStatusBarEnabled")) {
+            setCustomStatusBarEnabled(obj.optBoolean("customStatusBarEnabled", false))
+        }
+        if (obj.has("customStatusBarAppearance")) {
+            runCatching {
+                CustomStatusBarAppearancePreference.valueOf(obj.getString("customStatusBarAppearance"))
+            }.getOrNull()?.let { setCustomStatusBarAppearance(it) }
         }
     }
 }

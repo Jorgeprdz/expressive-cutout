@@ -611,4 +611,10 @@
     <string name="statusbar_preview_time">2:34</string>
     <string name="test_progress_complete_title">Download complete</string>
     <string name="test_progress_complete_text">document_preview.pdf</string>
+    <string name="custom_status_bar_title">Custom status bar</string>
+    <string name="custom_status_bar_desc">Replace native status icons with the Pixel-style Expressive Cutout layer.</string>
+    <string name="custom_status_bar_appearance_title">Icon appearance</string>
+    <string name="custom_status_bar_auto">Auto</string>
+    <string name="custom_status_bar_light">Light</string>
+    <string name="custom_status_bar_dark">Dark</string>
 </resources>

@@ -53,6 +53,7 @@ import com.ekoehler.expressivecutout.data.PermissionDotPosition
 import com.ekoehler.expressivecutout.data.PermissionDotPreferences
 import com.ekoehler.expressivecutout.data.PageTransitionStyle
 import com.ekoehler.expressivecutout.data.StatusBarPreferences
+import com.ekoehler.expressivecutout.data.CustomStatusBarAppearancePreference
 import com.ekoehler.expressivecutout.data.TimerTilePreferences
 import com.ekoehler.expressivecutout.data.TimerTileSettings
 import com.ekoehler.expressivecutout.data.SwipeDismissDirection
@@ -688,6 +689,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
      * Whether the user wants the system status bar's notification icons hidden. Saved even while
      * Shizuku is unreachable; `StatusBarIconController` applies it as soon as the bridge is back.
      */
+    val customStatusBarEnabled: StateFlow<Boolean> =
+        statusBarPreferences.customStatusBarEnabled.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = false,
+        )
+
+    val customStatusBarAppearance: StateFlow<CustomStatusBarAppearancePreference> =
+        statusBarPreferences.customStatusBarAppearance.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = CustomStatusBarAppearancePreference.AUTO,
+        )
+
+    fun setCustomStatusBarEnabled(enabled: Boolean) = viewModelScope.launch {
+        statusBarPreferences.setCustomStatusBarEnabled(enabled)
+    }
+
+    fun setCustomStatusBarAppearance(appearance: CustomStatusBarAppearancePreference) =
+        viewModelScope.launch {
+            statusBarPreferences.setCustomStatusBarAppearance(appearance)
+        }
+
     val hideNotificationIcons: StateFlow<Boolean> =
         statusBarPreferences.hideNotificationIcons.stateIn(
             scope = viewModelScope,
