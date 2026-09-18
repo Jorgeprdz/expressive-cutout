@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.update
 
 internal enum class StatusBarNetworkType {
     FOUR_G,
+    FOUR_G_PLUS,
     LTE,
     FIVE_G,
 }

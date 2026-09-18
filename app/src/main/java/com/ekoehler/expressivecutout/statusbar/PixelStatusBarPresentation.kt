@@ -4,6 +4,13 @@ import com.ekoehler.expressivecutout.data.BatteryPercentageMode
 import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 
 internal object PixelStatusBarPresentation {
+    fun networkTypeLabel(type: StatusBarNetworkType): String = when (type) {
+        StatusBarNetworkType.FOUR_G -> "4G"
+        StatusBarNetworkType.FOUR_G_PLUS -> "4G+"
+        StatusBarNetworkType.LTE -> "LTE"
+        StatusBarNetworkType.FIVE_G -> "5G"
+    }
+
     fun mobileSignalWidthDp(style: PixelMobileBarStyle, scale: Float): Float =
         PixelStatusBarGeometry.mobileWidthDp(style) * scale.coerceAtLeast(0.1f)
 
@@ -18,6 +25,7 @@ internal object PixelStatusBarPresentation {
             StatusBarNetworkType.FOUR_G,
             StatusBarNetworkType.FIVE_G,
             -> 14.5f
+            StatusBarNetworkType.FOUR_G_PLUS -> 19f
             StatusBarNetworkType.LTE -> 17f
         }
         return base * safe

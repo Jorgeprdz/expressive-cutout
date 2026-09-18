@@ -81,6 +81,9 @@ internal object StatusBarTelephonyNetworkTypeParser {
             .orEmpty()
 
         if ("NR" in override || network == "NR") return StatusBarNetworkType.FIVE_G
+        if (override == "LTE_CA" || override == "LTE_ADV_PRO") {
+            return StatusBarNetworkType.FOUR_G_PLUS
+        }
 
         return when (network) {
             "LTE" -> StatusBarNetworkType.LTE

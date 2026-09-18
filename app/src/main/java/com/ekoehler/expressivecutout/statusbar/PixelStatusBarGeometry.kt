@@ -120,12 +120,12 @@ internal object PixelStatusBarGeometry {
     private fun mobileProfile(style: PixelMobileBarStyle): MobileProfile = when (style) {
         PixelMobileBarStyle.CLASSIC -> MobileProfile(
             intrinsicWidthDp = 15f,
-            leftFraction = 0.10f,
-            bottomFraction = 0.86f,
-            availableWidthFraction = 0.80f,
-            gapFraction = 0.075f,
-            heightFractions = listOf(0.24f, 0.40f, 0.56f, 0.72f),
-            cornerFraction = 0.42f,
+            leftFraction = 0.14f,
+            bottomFraction = 0.88f,
+            availableWidthFraction = 0.66f,
+            gapFraction = 0.12121212f,
+            heightFractions = listOf(0.24f, 0.42f, 0.60f, 0.78f),
+            cornerFraction = 0.50f,
         )
         PixelMobileBarStyle.COMPACT -> MobileProfile(
             intrinsicWidthDp = 13.5f,

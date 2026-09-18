@@ -182,11 +182,7 @@ internal fun PixelStatusBarLayer(
                     if (showNetwork) {
                         state.cellular.networkType?.let {
                             Text(
-                                text = when (it) {
-                                    StatusBarNetworkType.FOUR_G -> "4G"
-                                    StatusBarNetworkType.LTE -> "LTE"
-                                    StatusBarNetworkType.FIVE_G -> "5G"
-                                },
+                                text = PixelStatusBarPresentation.networkTypeLabel(it),
                                 color = rightTint,
                                 fontSize = (9.25f * scales.systemIcons).sp,
                                 fontWeight = FontWeight.Medium,
