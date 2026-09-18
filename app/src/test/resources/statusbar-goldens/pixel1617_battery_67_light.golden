@@ -1,0 +1,9 @@
+scene=status-bar-golden-v3
+canvas=240x36 background=light
+style=PIXEL_16_17 display=Pixel 16/17 signature=pixel1617-data-rich
+clock=9:41 weight=SEMIBOLD sizeSp=14.20
+network=5G mode=PROMINENT weight=SEMIBOLD sizeSp=10.20
+pixel1617.signal=viewBox=132x108 active=4 language=pixel-capsule-bars-v2 bars=[0.000,0.535,0.152,0.385,r0.500;0.283,0.430,0.152,0.490,r0.500;0.566,0.325,0.152,0.595,r0.500;0.848,0.225,0.144,0.695,r0.500] lower=[] baseline=single optically-centered
+pixel1617.wifi=viewBox=144x112 activeParts=3 language=pixel-bold-arcs-v2 outer=0.030,0.040,0.940,0.392,stroke=0.196 middle=0.235,0.445,0.530,0.286,stroke=0.188 dot=0.408,0.742,0.184,0.237,shape=circle
+pixel1617.battery=viewBox=224x112 level=67 fill=0.670 charging=false body=0.000,0.040,0.897,0.920,r0.240 terminal=0.942,0.330,0.049,0.340,r0.500 mode=pixel-rounded-rect-v2 colorMode=pixel-fill bodyColor=#99A1AA activeColor=#F0F4F5 inactiveColor=#7F8D97 textColor=#1C1D21 criticalColor=#F50003
+spacingDp=2.40 edgeInsetDp=7.00
