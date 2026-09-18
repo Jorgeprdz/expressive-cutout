@@ -1,9 +1,9 @@
-scene=status-bar-golden-v2
+scene=status-bar-golden-v3
 canvas=240x36 background=light
 style=PIXEL_16_17 display=Pixel 16/17 signature=pixel1617-data-rich
 clock=9:41 weight=SEMIBOLD sizeSp=14.20
 network=5G mode=PROMINENT weight=SEMIBOLD sizeSp=10.20
-signal=DOT_MATRIX level=4 active=4 geometry=active-dot-matrix
-wifi=PIXEL_COMPACT_ARCS level=4 arcs=3 stroke=compact-bold
-battery=NUMERIC_CAPSULE_PROMINENT level=67 charging=true numeric=true shape=green-number-pill-bolt
+android16.signal=viewBox=149x108 active=4 bars=[0.000,0.250,0.161,0.398,r0.500;0.282,0.157,0.161,0.491,r0.500;0.564,0.074,0.161,0.574,r0.500;0.846,0.019,0.148,0.630,r0.500] lower=[0.007,0.759,0.148,0.241,r0.500;0.289,0.759,0.148,0.241,r0.500;0.570,0.759,0.148,0.241,r0.500;0.846,0.759,0.148,0.241,r0.500] baseline=aligned
+android16.wifi=viewBox=150x113 activeParts=3 outer=0.000,0.000,1.000,0.407,stroke=0.221 middle=0.190,0.442,0.620,0.292,stroke=0.221 dot=0.397,0.735,0.207,0.274,shape=circle
+android16.battery=viewBox=243x121 level=67 fill=0.670 charging=true body=0.000,0.000,0.909,1.000,r0.250 terminal=0.951,0.298,0.049,0.405,r0.500 mode=android16-rounded-rect colorMode=active-fill bodyColor=#99A1AA activeColor=#F0F4F5 inactiveColor=#7F8D97 textColor=#1C1D21 criticalColor=#F50003
 spacingDp=2.40 edgeInsetDp=7.00
