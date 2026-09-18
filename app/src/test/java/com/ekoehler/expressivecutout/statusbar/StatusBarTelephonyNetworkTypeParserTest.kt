@@ -20,6 +20,22 @@ class StatusBarTelephonyNetworkTypeParserTest {
     }
 
     @Test
+    fun `LTE carrier aggregation and advanced pro map to 4g plus`() {
+        assertEquals(
+            StatusBarNetworkType.FOUR_G_PLUS,
+            StatusBarTelephonyNetworkTypeParser.parse(
+                "Phone Id=0\n mTelephonyDisplayInfo=TelephonyDisplayInfo {network=LTE, overrideNetwork=LTE_CA}\n mDefaultPhoneId=0",
+            ),
+        )
+        assertEquals(
+            StatusBarNetworkType.FOUR_G_PLUS,
+            StatusBarTelephonyNetworkTypeParser.parse(
+                "Phone Id=0\n mTelephonyDisplayInfo=TelephonyDisplayInfo {network=LTE, overrideNetwork=LTE_ADV_PRO}\n mDefaultPhoneId=0",
+            ),
+        )
+    }
+
+    @Test
     fun `native NR maps to 5g and LTE maps to LTE`() {
         assertEquals(
             StatusBarNetworkType.FIVE_G,

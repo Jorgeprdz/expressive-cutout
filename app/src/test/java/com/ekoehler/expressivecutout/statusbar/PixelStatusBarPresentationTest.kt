@@ -9,6 +9,16 @@ import org.junit.Test
 class PixelStatusBarPresentationTest {
 
     @Test
+    fun `4g plus presentation has explicit label and width`() {
+        assertEquals("4G+", PixelStatusBarPresentation.networkTypeLabel(StatusBarNetworkType.FOUR_G_PLUS))
+        assertEquals(
+            19f,
+            PixelStatusBarPresentation.networkTypeWidthDp(StatusBarNetworkType.FOUR_G_PLUS, 1f),
+            0.001f,
+        )
+    }
+
+    @Test
     fun `battery percentage off never renders text`() {
         assertNull(PixelStatusBarPresentation.batteryPercentage(82, BatteryPercentageMode.OFF))
     }

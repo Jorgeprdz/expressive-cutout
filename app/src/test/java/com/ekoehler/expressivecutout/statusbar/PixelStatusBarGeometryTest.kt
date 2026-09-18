@@ -91,6 +91,23 @@ class PixelStatusBarGeometryTest {
     }
 
     @Test
+    fun `classic mobile style matches pixel reference rhythm`() {
+        val g = PixelStatusBarGeometry.mobileGlyph(100f, 100f, PixelMobileBarStyle.CLASSIC)
+
+        assertEquals(4, g.bars.size)
+        assertEquals(88f, g.bottom, 0.001f)
+        assertEquals(14f, g.bars.first().left, 0.001f)
+        assertEquals(12f, g.barWidth, 0.001f)
+        assertEquals(8f, g.gap, 0.001f)
+        listOf(24f, 42f, 60f, 78f).zip(g.bars.map { it.height }).forEach { (expected, actual) ->
+            assertEquals(expected, actual, 0.001f)
+        }
+        g.bars.forEach { bar ->
+            assertEquals(bar.width / 2f, bar.cornerRadius, 0.001f)
+        }
+    }
+
+    @Test
     fun `mobile styles expose distinct pixel proportions`() {
         val classic = PixelStatusBarGeometry.mobileGlyph(100f, 100f, PixelMobileBarStyle.CLASSIC)
         val compact = PixelStatusBarGeometry.mobileGlyph(100f, 100f, PixelMobileBarStyle.COMPACT)
