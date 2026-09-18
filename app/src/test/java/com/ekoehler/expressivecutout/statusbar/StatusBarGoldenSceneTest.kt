@@ -1,6 +1,8 @@
 package com.ekoehler.expressivecutout.statusbar
 
+import androidx.compose.ui.graphics.Color
 import com.ekoehler.expressivecutout.data.CustomStatusBarStyle
+import com.ekoehler.expressivecutout.data.IosBatteryColorMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -113,10 +115,11 @@ class StatusBarGoldenSceneTest {
 
     @Test
     fun `ios battery status color thresholds still pass`() {
-        assertEquals(IosBatteryStatusColorRole.NORMAL, IosBatteryStatusColors.roleFor(20))
-        assertEquals(IosBatteryStatusColorRole.YELLOW, IosBatteryStatusColors.roleFor(19))
-        assertEquals(IosBatteryStatusColorRole.YELLOW, IosBatteryStatusColors.roleFor(10))
-        assertEquals(IosBatteryStatusColorRole.RED, IosBatteryStatusColors.roleFor(9))
+        assertEquals(Color.Black, IosBatteryStatusColors.resolve(20, Color.Black, IosBatteryColorMode.STATUS_COLOR))
+        assertEquals(IosBatteryStatusColors.Yellow, IosBatteryStatusColors.resolve(19, Color.Black, IosBatteryColorMode.STATUS_COLOR))
+        assertEquals(IosBatteryStatusColors.Yellow, IosBatteryStatusColors.resolve(10, Color.Black, IosBatteryColorMode.STATUS_COLOR))
+        assertEquals(IosBatteryStatusColors.Red, IosBatteryStatusColors.resolve(9, Color.Black, IosBatteryColorMode.STATUS_COLOR))
+        assertEquals(Color.Black, IosBatteryStatusColors.resolve(7, Color.Black, IosBatteryColorMode.MONOCHROME))
     }
 
     @Test
