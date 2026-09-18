@@ -93,7 +93,7 @@ internal object PixelStatusBarGeometry {
             centerX = centerX,
             centerY = centerY,
             radii = listOf(0.16f, 0.30f, 0.44f).map { safeSide * it },
-            strokeWidth = safeSide * 0.080f,
+            strokeWidth = safeSide * 0.082f,
             startAngle = 220f,
             sweepAngle = 100f,
             dotX = centerX,

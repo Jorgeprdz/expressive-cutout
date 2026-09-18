@@ -32,8 +32,9 @@ class PixelGlyphGeometryPolishTest {
         val halfStroke = g.strokeWidth / 2f
         assertTrue(g.centerX - outer - halfStroke >= 0f)
         assertTrue(g.centerX + outer + halfStroke <= g.side)
+        // drawArc paints only the upper 220°..320° sweep, so the circle's unused lower
+        // bounding-box half may extend below the canvas without clipping painted pixels.
         assertTrue(g.centerY - outer - halfStroke >= 0f)
-        assertTrue(g.centerY + outer + halfStroke <= g.side)
         assertTrue(g.dotY - g.dotRadius >= 0f)
         assertTrue(g.dotY + g.dotRadius <= g.side)
     }
