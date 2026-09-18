@@ -38,6 +38,7 @@ import com.ekoehler.expressivecutout.R
 import com.ekoehler.expressivecutout.data.BatteryPercentageMode
 import com.ekoehler.expressivecutout.data.CustomStatusBarAppearancePreference
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
+import com.ekoehler.expressivecutout.data.IosBatteryColorMode
 import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 import com.ekoehler.expressivecutout.statusbar.CustomStatusBarPreviewState
 import com.ekoehler.expressivecutout.statusbar.IslandOccupancy
@@ -361,6 +362,42 @@ internal fun CustomStatusBarScreen(
                             settings.copy(
                                 batteryPercentageMode =
                                     if (index == 1) BatteryPercentageMode.OUTSIDE else BatteryPercentageMode.OFF,
+                            ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = "iOS battery color",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = "Black keeps iOS monochrome. Status makes <20% yellow and <10% red.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ExpressiveSegmentedRow(
+                    options = listOf("Black", "Status"),
+                    selectedIndex = if (settings.iosBatteryColorMode == IosBatteryColorMode.STATUS_COLOR) 1 else 0,
+                    onSelect = { index ->
+                        viewModel.setCustomStatusBarSettings(
+                            settings.copy(
+                                iosBatteryColorMode = if (index == 1) {
+                                    IosBatteryColorMode.STATUS_COLOR
+                                } else {
+                                    IosBatteryColorMode.MONOCHROME
+                                },
                             ),
                         )
                     },
