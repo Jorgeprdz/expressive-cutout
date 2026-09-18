@@ -26,6 +26,8 @@ internal fun IosMeasuredSignalGlyph(
     heightDp: Float,
     scale: Float,
     modifier: Modifier = Modifier,
+    level: Int? = 4,
+    inactiveAlpha: Float = PixelStatusBarGeometry.INACTIVE_ALPHA,
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     Canvas(
@@ -33,12 +35,13 @@ internal fun IosMeasuredSignalGlyph(
             .width((widthDp * safeScale).dp)
             .height((heightDp * safeScale).dp),
     ) {
+        val active = dynamicLevel(level, geometry.bars.size)
         val box = fitMeasuredBox(geometry.aspectRatio)
-        geometry.bars.forEach { bar ->
+        geometry.bars.forEachIndexed { index, bar ->
             val rect = bar.rect.toRect(box)
             val radius = min(rect.width * bar.radiusToWidth, rect.height / 2f)
             drawRoundRect(
-                color = tint,
+                color = tint.copy(alpha = if (index < active) 1f else inactiveAlpha),
                 topLeft = Offset(rect.left, rect.top),
                 size = Size(rect.width, rect.height),
                 cornerRadius = CornerRadius(radius),
@@ -54,27 +57,30 @@ internal fun IosMeasuredWifiGlyph(
     sizeDp: Float,
     scale: Float,
     modifier: Modifier = Modifier,
+    level: Int? = 4,
+    inactiveAlpha: Float = PixelStatusBarGeometry.INACTIVE_ALPHA,
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     Canvas(modifier = modifier.size((sizeDp * safeScale).dp)) {
+        val activeParts = wifiActiveParts(level)
         val box = fitMeasuredBox(geometry.aspectRatio)
         drawMeasuredArc(
             visibleRect = geometry.outer.toRect(box),
             stroke = box.height * geometry.outerStrokeToHeight,
-            tint = tint,
+            tint = tint.copy(alpha = if (activeParts >= 3) 1f else inactiveAlpha),
             startAngle = 205f,
             sweepAngle = 130f,
         )
         drawMeasuredArc(
             visibleRect = geometry.middle.toRect(box),
             stroke = box.height * geometry.middleStrokeToHeight,
-            tint = tint,
+            tint = tint.copy(alpha = if (activeParts >= 2) 1f else inactiveAlpha),
             startAngle = 208f,
             sweepAngle = 124f,
         )
         drawMeasuredTeardrop(
             rect = geometry.dot.toRect(box),
-            tint = tint,
+            tint = tint.copy(alpha = if (activeParts >= 1) 1f else inactiveAlpha),
             soft = geometry.dotShape == "soft-teardrop",
         )
     }
@@ -88,6 +94,8 @@ internal fun IosMeasuredBatteryGlyph(
     heightDp: Float,
     scale: Float,
     modifier: Modifier = Modifier,
+    level: Int? = 100,
+    charging: Boolean = false,
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     Canvas(
@@ -95,6 +103,7 @@ internal fun IosMeasuredBatteryGlyph(
             .width((widthDp * safeScale).dp)
             .height((heightDp * safeScale).dp),
     ) {
+        val fraction = (level ?: 100).coerceIn(0, 100) / 100f
         val box = fitMeasuredBox(geometry.aspectRatio)
         val body = geometry.body.toRect(box)
         val terminal = geometry.terminal.toRect(box)
@@ -121,13 +130,19 @@ internal fun IosMeasuredBatteryGlyph(
             )
             geometry.innerFill?.let { fillRect ->
                 val fill = fillRect.toRect(box)
-                val fillRadius = fill.height * (geometry.innerRadiusToHeight ?: 0.285f)
-                drawRoundRect(
-                    color = tint,
-                    topLeft = Offset(fill.left, fill.top),
-                    size = Size(fill.width, fill.height),
-                    cornerRadius = CornerRadius(fillRadius),
-                )
+                val fillWidth = (fill.width * fraction).coerceAtLeast(0f)
+                if (fillWidth > 0f) {
+                    val fillRadius = min(
+                        fill.height * (geometry.innerRadiusToHeight ?: 0.285f),
+                        fillWidth / 2f,
+                    )
+                    drawRoundRect(
+                        color = tint,
+                        topLeft = Offset(fill.left, fill.top),
+                        size = Size(fillWidth, fill.height),
+                        cornerRadius = CornerRadius(fillRadius),
+                    )
+                }
             }
             drawRoundRect(
                 color = terminalColor,
@@ -137,13 +152,22 @@ internal fun IosMeasuredBatteryGlyph(
             )
         } else {
             drawRoundRect(
-                color = tint,
+                color = tint.copy(alpha = 0.28f),
                 topLeft = Offset(body.left, body.top),
                 size = Size(body.width, body.height),
                 cornerRadius = CornerRadius(bodyRadius),
             )
+            val fillWidth = (body.width * fraction).coerceAtLeast(0f)
+            if (fillWidth > 0f) {
+                drawRoundRect(
+                    color = if (charging) Color(0xFF30D158) else tint,
+                    topLeft = Offset(body.left, body.top),
+                    size = Size(fillWidth, body.height),
+                    cornerRadius = CornerRadius(min(bodyRadius, fillWidth / 2f)),
+                )
+            }
             drawRoundRect(
-                color = tint,
+                color = tint.copy(alpha = if (fraction > 0f) 1f else 0.28f),
                 topLeft = Offset(terminal.left, terminal.top),
                 size = Size(terminal.width, terminal.height),
                 cornerRadius = CornerRadius(terminalRadius),
@@ -200,7 +224,6 @@ private fun DrawScope.drawMeasuredTeardrop(
 ) {
     val cx = rect.left + rect.width / 2f
     val top = rect.top
-    val bottom = rect.bottom
     val left = rect.left
     val right = rect.right
     val shoulderY = rect.top + rect.height * if (soft) 0.45f else 0.42f
