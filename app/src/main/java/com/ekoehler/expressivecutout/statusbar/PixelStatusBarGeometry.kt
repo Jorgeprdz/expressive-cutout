@@ -95,7 +95,7 @@ internal object PixelStatusBarGeometry {
             startAngle = 220f,
             sweepAngle = 100f,
             dotX = centerX,
-            dotY = safeSide * 0.80f,
+            dotY = safeSide * 0.79f,
             dotRadius = maxOf(safeSide * 0.055f, safeSide * 0.085f * 0.62f),
         )
     }
