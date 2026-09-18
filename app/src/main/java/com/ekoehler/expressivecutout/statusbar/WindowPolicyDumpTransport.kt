@@ -8,12 +8,18 @@ import android.util.Log
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 
 internal interface WindowPolicyDumpTransport {
     suspend fun dumpWindowPolicy(): String?
+    suspend fun dumpWindow(): String? = dumpWindowPolicy()
+    fun changes(): Flow<SystemBarAppearanceSnapshot> = emptyFlow()
 }
 
 internal data class WindowPolicySnapshotRead(
@@ -25,7 +31,7 @@ internal class WindowPolicySnapshotReader(
     private val transport: WindowPolicyDumpTransport,
 ) {
     suspend fun read(): WindowPolicySnapshotRead {
-        val raw = transport.dumpWindowPolicy()
+        val raw = transport.dumpWindow() ?: transport.dumpWindowPolicy()
         return WindowPolicySnapshotRead(
             raw = raw,
             snapshot = raw?.let(WindowPolicyAppearanceParser::parse),
@@ -36,9 +42,9 @@ internal class WindowPolicySnapshotReader(
 }
 
 /**
- * Binds a tiny non-daemon Shizuku UserService so the dump command runs as shell/root rather than
- * through the app process. ShizukuBinderWrapper only proxies transact(); its dump() delegates to
- * the original binder and therefore is not suitable for this privileged dumpsys path.
+ * Binds a tiny non-daemon Shizuku UserService so the dump/logcat commands run as shell/root rather
+ * than through the app process. It also exposes a callback flow for live WindowManager appearance
+ * events so Auto tint is not limited to one-shot foreground reconciliation.
  */
 internal class ShizukuUserServiceWindowPolicyDumpTransport(
     context: Context,
@@ -93,11 +99,72 @@ internal class ShizukuUserServiceWindowPolicyDumpTransport(
                     remote.compareAndSet(service, null)
                     Log.d(
                         TAG,
-                        "AUTO_APPEARANCE transport=user_service dumpFailure=" +
+                        "AUTO_APPEARANCE transport=user_service policyDumpFailure=" +
                             "${error.javaClass.simpleName}:${error.message}",
                     )
                 }
                 .getOrNull()
+        }
+    }
+
+    override suspend fun dumpWindow(): String? {
+        val service = awaitService() ?: return null
+        return withContext(Dispatchers.IO) {
+            runCatching { service.dumpWindow() }
+                .onFailure { error ->
+                    remote.compareAndSet(service, null)
+                    Log.d(
+                        TAG,
+                        "AUTO_APPEARANCE transport=user_service windowDumpFailure=" +
+                            "${error.javaClass.simpleName}:${error.message}",
+                    )
+                }
+                .getOrNull()
+        }
+    }
+
+    override fun changes(): Flow<SystemBarAppearanceSnapshot> = callbackFlow {
+        val service = awaitService()
+        if (service == null) {
+            Log.d(TAG, "AUTO_APPEARANCE monitor=unavailable reason=bind_failed")
+            close()
+            return@callbackFlow
+        }
+
+        val callback = object : IStatusBarAppearanceCallback.Stub() {
+            override fun onAppearanceChanged(lightStatusBars: Boolean) {
+                val appearance = if (lightStatusBars) {
+                    StatusBarAppearanceBits.LIGHT_STATUS_BARS
+                } else {
+                    0
+                }
+                Log.d(
+                    TAG,
+                    "AUTO_APPEARANCE callback lightStatusBars=$lightStatusBars " +
+                        "appearance=$appearance",
+                )
+                trySend(SystemBarAppearanceSnapshot(globalAppearance = appearance))
+            }
+        }
+
+        runCatching { service.startMonitor(callback) }
+            .onFailure { error ->
+                Log.d(
+                    TAG,
+                    "AUTO_APPEARANCE monitor=start_failed reason=" +
+                        "${error.javaClass.simpleName}:${error.message}",
+                )
+                close(error)
+            }
+        awaitClose {
+            runCatching { service.stopMonitor() }
+                .onFailure { error ->
+                    Log.d(
+                        TAG,
+                        "AUTO_APPEARANCE monitor=stop_failed reason=" +
+                            "${error.javaClass.simpleName}:${error.message}",
+                    )
+                }
         }
     }
 
@@ -156,7 +223,7 @@ internal class ShizukuUserServiceWindowPolicyDumpTransport(
 
     private companion object {
         const val TAG = "StatusBarAuto"
-        const val USER_SERVICE_VERSION = 2
+        const val USER_SERVICE_VERSION = 3
         const val BIND_TIMEOUT_MS = 3_000L
     }
 }
