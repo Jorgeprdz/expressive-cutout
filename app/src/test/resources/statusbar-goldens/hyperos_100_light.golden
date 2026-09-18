@@ -1,4 +1,4 @@
-scene=status-bar-golden-v1
+scene=status-bar-golden-v2
 canvas=240x36 background=light
 style=HYPER_OS display=HyperOS signature=hyperos-balanced-numeric
 clock=9:41 weight=REGULAR sizeSp=13.50
