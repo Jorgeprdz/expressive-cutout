@@ -7,6 +7,36 @@ import org.junit.Test
 class StatusBarTelephonyNetworkTypeParserTest {
 
     @Test
+    fun `display info maps samsung commercial labels without dumpsys text`() {
+        assertEquals(
+            StatusBarNetworkType.FOUR_G_PLUS,
+            StatusBarTelephonyDisplayInfoMapper.map(networkType = 13, overrideNetworkType = 1),
+        )
+        assertEquals(
+            StatusBarNetworkType.FOUR_G_PLUS,
+            StatusBarTelephonyDisplayInfoMapper.map(networkType = 13, overrideNetworkType = 2),
+        )
+        assertEquals(
+            StatusBarNetworkType.FIVE_G,
+            StatusBarTelephonyDisplayInfoMapper.map(networkType = 13, overrideNetworkType = 3),
+        )
+        assertEquals(
+            StatusBarNetworkType.FIVE_G,
+            StatusBarTelephonyDisplayInfoMapper.map(networkType = 20, overrideNetworkType = 0),
+        )
+        assertEquals(
+            StatusBarNetworkType.FOUR_G,
+            StatusBarTelephonyDisplayInfoMapper.map(networkType = 13, overrideNetworkType = 0),
+        )
+    }
+
+    @Test
+    fun `unknown display info falls back safely`() {
+        assertNull(StatusBarTelephonyDisplayInfoMapper.map(networkType = 0, overrideNetworkType = 0))
+        assertNull(StatusBarTelephonyDisplayInfoMapper.map(networkType = -1, overrideNetworkType = 99))
+    }
+
+    @Test
     fun `5g display override wins over LTE base network`() {
         val raw = """
             last known state:
