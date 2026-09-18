@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 
-internal enum class CustomStatusBarAppearancePreference {
+enum class CustomStatusBarAppearancePreference {
     AUTO,
     LIGHT,
     DARK,
