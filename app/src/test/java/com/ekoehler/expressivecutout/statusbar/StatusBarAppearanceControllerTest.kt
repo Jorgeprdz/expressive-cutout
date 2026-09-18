@@ -14,7 +14,7 @@ class StatusBarAppearanceControllerTest {
     @Test
     fun `real snapshot resolves with real system provenance`() = runBlocking {
         val source = FakeSource(
-            snapshots = ArrayDeque(
+            snapshots = ArrayDeque<SystemBarAppearanceSnapshot?>(
                 listOf(
                     SystemBarAppearanceSnapshot(
                         globalAppearance = StatusBarAppearanceBits.LIGHT_STATUS_BARS,
@@ -39,7 +39,9 @@ class StatusBarAppearanceControllerTest {
 
     @Test
     fun `null snapshot resolves with theme fallback provenance`() = runBlocking {
-        val source = FakeSource(snapshots = ArrayDeque(listOf(null)))
+        val source = FakeSource(
+            snapshots = ArrayDeque<SystemBarAppearanceSnapshot?>(listOf(null)),
+        )
         val controller = StatusBarAppearanceController(source)
 
         controller.reconcile()
@@ -74,7 +76,7 @@ class StatusBarAppearanceControllerTest {
     @Test
     fun `reconcile performs exactly one source snapshot per call`() = runBlocking {
         val source = FakeSource(
-            snapshots = ArrayDeque(
+            snapshots = ArrayDeque<SystemBarAppearanceSnapshot?>(
                 listOf(
                     SystemBarAppearanceSnapshot(globalAppearance = 0),
                 ),
@@ -92,7 +94,9 @@ class StatusBarAppearanceControllerTest {
         val same = SystemBarAppearanceSnapshot(
             globalAppearance = StatusBarAppearanceBits.LIGHT_STATUS_BARS,
         )
-        val source = FakeSource(snapshots = ArrayDeque(listOf(same, same)))
+        val source = FakeSource(
+            snapshots = ArrayDeque<SystemBarAppearanceSnapshot?>(listOf(same, same)),
+        )
         val controller = StatusBarAppearanceController(source)
         val emissions = mutableListOf<StatusBarAppearanceState?>()
         val collector: Job = launch {

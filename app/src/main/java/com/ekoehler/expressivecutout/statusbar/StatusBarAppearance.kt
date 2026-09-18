@@ -18,6 +18,17 @@ internal enum class StatusBarSystemTheme {
     DARK,
 }
 
+internal enum class StatusBarAppearanceProvenance {
+    REAL_SYSTEM,
+    THEME_FALLBACK,
+    MANUAL,
+}
+
+internal data class StatusBarAppearanceResolution(
+    val foreground: StatusBarForeground,
+    val provenance: StatusBarAppearanceProvenance,
+)
+
 /**
  * Centralized semantic bit used by the Android-free reducer.
  *
@@ -47,9 +58,23 @@ internal object StatusBarAppearanceResolver {
         x: Int,
         y: Int,
         systemTheme: StatusBarSystemTheme,
-    ): StatusBarForeground = when (mode) {
-        StatusBarAppearanceMode.FORCE_LIGHT_FOREGROUND -> StatusBarForeground.LIGHT
-        StatusBarAppearanceMode.FORCE_DARK_FOREGROUND -> StatusBarForeground.DARK
+    ): StatusBarForeground = resolveDetailed(mode, state, x, y, systemTheme).foreground
+
+    fun resolveDetailed(
+        mode: StatusBarAppearanceMode,
+        state: StatusBarAppearanceState?,
+        x: Int,
+        y: Int,
+        systemTheme: StatusBarSystemTheme,
+    ): StatusBarAppearanceResolution = when (mode) {
+        StatusBarAppearanceMode.FORCE_LIGHT_FOREGROUND -> StatusBarAppearanceResolution(
+            foreground = StatusBarForeground.LIGHT,
+            provenance = StatusBarAppearanceProvenance.MANUAL,
+        )
+        StatusBarAppearanceMode.FORCE_DARK_FOREGROUND -> StatusBarAppearanceResolution(
+            foreground = StatusBarForeground.DARK,
+            provenance = StatusBarAppearanceProvenance.MANUAL,
+        )
         StatusBarAppearanceMode.AUTO -> {
             val appearance = state
                 ?.regions
@@ -58,9 +83,15 @@ internal object StatusBarAppearanceResolver {
                 ?: state?.globalAppearance
 
             if (appearance != null) {
-                foregroundForAppearance(appearance)
+                StatusBarAppearanceResolution(
+                    foreground = foregroundForAppearance(appearance),
+                    provenance = StatusBarAppearanceProvenance.REAL_SYSTEM,
+                )
             } else {
-                fallbackForTheme(systemTheme)
+                StatusBarAppearanceResolution(
+                    foreground = fallbackForTheme(systemTheme),
+                    provenance = StatusBarAppearanceProvenance.THEME_FALLBACK,
+                )
             }
         }
     }

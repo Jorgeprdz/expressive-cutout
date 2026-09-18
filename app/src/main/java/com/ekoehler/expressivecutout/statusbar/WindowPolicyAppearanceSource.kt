@@ -1,6 +1,7 @@
 package com.ekoehler.expressivecutout.statusbar
 
 import android.content.Context
+import android.util.Log
 import com.ekoehler.expressivecutout.system.ShizukuState
 import com.ekoehler.expressivecutout.system.ShizukuStatus
 import java.io.File
@@ -69,11 +70,19 @@ internal class ShizukuWindowAppearanceSource(
     override val changes: Flow<SystemBarAppearanceSnapshot> = emptyFlow()
 
     override suspend fun snapshot(): SystemBarAppearanceSnapshot? = withContext(Dispatchers.IO) {
-        if (ShizukuState.status.value != ShizukuStatus.READY) return@withContext null
+        val shizuku = ShizukuState.status.value
+        if (shizuku != ShizukuStatus.READY) {
+            Log.d(
+                TAG,
+                "AUTO_APPEARANCE source=window_policy shizuku=$shizuku rawAvailable=false " +
+                    "rawLength=0 parserSuccess=false reason=shizuku_not_ready",
+            )
+            return@withContext null
+        }
 
         runCatching {
             val target = SystemServiceHelper.getSystemService("window")
-                ?: return@runCatching null
+                ?: error("window service unavailable")
             val windowBinder = ShizukuBinderWrapper(target)
             val dumpFile = File.createTempFile("window-policy-", ".txt", context.cacheDir)
             try {
@@ -81,10 +90,42 @@ internal class ShizukuWindowAppearanceSource(
                     windowBinder.dump(stream.fd, arrayOf("policy"))
                     stream.flush()
                 }
-                WindowPolicyAppearanceParser.parse(dumpFile.readText())
+                val raw = dumpFile.readText()
+                val snapshot = WindowPolicyAppearanceParser.parse(raw)
+                Log.d(
+                    TAG,
+                    "AUTO_APPEARANCE source=window_policy shizuku=READY " +
+                        "rawAvailable=${raw.isNotBlank()} rawLength=${raw.length} " +
+                        "globalAppearance=${snapshot?.globalAppearance} " +
+                        "regions=${snapshot?.regions?.size ?: 0} parserSuccess=${snapshot != null} " +
+                        "relevant=${relevantLines(raw)}",
+                )
+                snapshot
             } finally {
                 dumpFile.delete()
             }
+        }.onFailure { error ->
+            Log.d(
+                TAG,
+                "AUTO_APPEARANCE source=window_policy shizuku=READY rawAvailable=false " +
+                    "parserSuccess=false reason=${error.javaClass.simpleName}",
+            )
         }.getOrNull()
+    }
+
+    private fun relevantLines(raw: String): String = raw.lineSequence()
+        .map(String::trim)
+        .filter { line ->
+            line.contains("appearance", ignoreCase = true) ||
+                line.contains("statusbar", ignoreCase = true)
+        }
+        .filter(String::isNotBlank)
+        .take(8)
+        .joinToString(" | ")
+        .take(1_200)
+        .ifBlank { "<none>" }
+
+    private companion object {
+        const val TAG = "StatusBarAuto"
     }
 }

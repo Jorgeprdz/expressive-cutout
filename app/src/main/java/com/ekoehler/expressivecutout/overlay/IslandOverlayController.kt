@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -93,6 +94,7 @@ import com.ekoehler.expressivecutout.statusbar.CustomStatusBarDeviceStateStore
 import com.ekoehler.expressivecutout.statusbar.IslandOccupancy
 import com.ekoehler.expressivecutout.statusbar.PixelStatusBarLayer
 import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceMode
+import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceProvenance
 import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceResolver
 import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceState
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutEngine
@@ -734,24 +736,43 @@ internal class IslandOverlayController(
                                 }
                             val leftPoint = statusLayout.leftContentRegion
                             val rightPoint = statusLayout.rightContentRegion
-                            val leftForeground = StatusBarAppearanceResolver.resolve(
+                            val leftResolution = StatusBarAppearanceResolver.resolveDetailed(
                                 mode = customAppearanceMode,
                                 state = currentSystemBarAppearance,
                                 x = leftPoint?.centerX ?: 0,
                                 y = leftPoint?.centerY ?: 0,
                                 systemTheme = systemTheme,
                             )
-                            val rightForeground = StatusBarAppearanceResolver.resolve(
+                            val rightResolution = StatusBarAppearanceResolver.resolveDetailed(
                                 mode = customAppearanceMode,
                                 state = currentSystemBarAppearance,
                                 x = rightPoint?.centerX ?: displayWidthPx,
                                 y = rightPoint?.centerY ?: 0,
                                 systemTheme = systemTheme,
                             )
+                            LaunchedEffect(
+                                customAppearanceMode,
+                                currentSystemBarAppearance,
+                                leftResolution,
+                                rightResolution,
+                            ) {
+                                Log.d(
+                                    STATUS_BAR_AUTO_TAG,
+                                    "AUTO_APPEARANCE mode=$customAppearanceMode " +
+                                        "stateAvailable=${currentSystemBarAppearance != null} " +
+                                        "globalAppearance=${currentSystemBarAppearance?.globalAppearance} " +
+                                        "regions=${currentSystemBarAppearance?.regions?.size ?: 0} " +
+                                        "resolvedLeft=${leftResolution.foreground} " +
+                                        "provenanceLeft=${leftResolution.provenance} " +
+                                        "resolvedRight=${rightResolution.foreground} " +
+                                        "provenanceRight=${rightResolution.provenance} " +
+                                        "fallbackUsed=${leftResolution.provenance == StatusBarAppearanceProvenance.THEME_FALLBACK || rightResolution.provenance == StatusBarAppearanceProvenance.THEME_FALLBACK}",
+                                )
+                            }
                             PixelStatusBarLayer(
                                 state = customDeviceState,
-                                leftForeground = leftForeground,
-                                rightForeground = rightForeground,
+                                leftForeground = leftResolution.foreground,
+                                rightForeground = rightResolution.foreground,
                                 layout = statusLayout,
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -3007,6 +3028,7 @@ internal class IslandOverlayController(
         fun shouldCollapseOnOutsideTouch(isExpanded: Boolean, previewPinned: Boolean): Boolean =
             isExpanded && !previewPinned
         const val TAG = "IslandOverlay"
+        const val STATUS_BAR_AUTO_TAG = "StatusBarAuto"
         const val WINDOW_MARGIN_DP = 24
 
         /** Half-length of the rotation cross-fade: island fades out, snaps, then fades back in. */

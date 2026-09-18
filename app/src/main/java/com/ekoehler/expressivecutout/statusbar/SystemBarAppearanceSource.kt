@@ -77,11 +77,15 @@ internal class StatusBarAppearanceController(
 
     fun start(scope: CoroutineScope): Job = scope.launch {
         source.changes.collect { snapshot ->
-            _state.value = SystemBarAppearanceNormalizer.normalize(snapshot)
+            applyNormalized(SystemBarAppearanceNormalizer.normalize(snapshot))
         }
     }
 
     suspend fun reconcile() {
-        _state.value = source.snapshot()?.let(SystemBarAppearanceNormalizer::normalize)
+        applyNormalized(source.snapshot()?.let(SystemBarAppearanceNormalizer::normalize))
+    }
+
+    private fun applyNormalized(next: StatusBarAppearanceState?) {
+        if (_state.value != next) _state.value = next
     }
 }
