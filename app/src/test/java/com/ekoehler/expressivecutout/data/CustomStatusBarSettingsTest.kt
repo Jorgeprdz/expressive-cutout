@@ -14,6 +14,7 @@ class CustomStatusBarSettingsTest {
         assertEquals(1f, d.systemIconsScale)
         assertEquals(4f, d.systemIconsSpacingDp)
         assertEquals(1f, d.batteryScale)
+        assertEquals(PixelMobileBarStyle.CLASSIC, d.mobileBarStyle)
         assertEquals(BatteryPercentageMode.OFF, d.batteryPercentageMode)
     }
 
@@ -47,6 +48,7 @@ class CustomStatusBarSettingsTest {
     @Test
     fun `unknown persisted enums fall back safely`() {
         assertEquals(BatteryPercentageMode.OFF, BatteryPercentageMode.fromPersisted("wat"))
+        assertEquals(PixelMobileBarStyle.CLASSIC, PixelMobileBarStyle.fromPersisted("future"))
         assertEquals(CustomStatusBarStyle.PIXEL, CustomStatusBarStyle.fromPersisted("future"))
     }
 
@@ -72,6 +74,7 @@ class CustomStatusBarSettingsTest {
             appearance = CustomStatusBarAppearancePreference.DARK,
             masterScale = 1.3f,
             clockOffsetXDp = 12f,
+            mobileBarStyle = PixelMobileBarStyle.TALL,
             batteryPercentageMode = BatteryPercentageMode.OUTSIDE,
         )
 
@@ -81,6 +84,7 @@ class CustomStatusBarSettingsTest {
         assertEquals(CustomStatusBarAppearancePreference.DARK, reset.appearance)
         assertEquals(1f, reset.masterScale)
         assertEquals(0f, reset.clockOffsetXDp)
+        assertEquals(PixelMobileBarStyle.CLASSIC, reset.mobileBarStyle)
         assertEquals(BatteryPercentageMode.OFF, reset.batteryPercentageMode)
     }
 }

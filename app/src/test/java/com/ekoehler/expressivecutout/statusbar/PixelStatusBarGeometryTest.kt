@@ -1,5 +1,6 @@
 package com.ekoehler.expressivecutout.statusbar
 
+import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -66,26 +67,45 @@ class PixelStatusBarGeometryTest {
     }
 
     @Test
-    fun `mobile geometry is four equal-width ascending bars on one baseline`() {
-        val g = PixelStatusBarGeometry.mobileGlyph(100f, 100f)
+    fun `all mobile bar styles are four contained ascending bars on one baseline`() {
+        PixelMobileBarStyle.entries.forEach { style ->
+            val g = PixelStatusBarGeometry.mobileGlyph(100f, 100f, style)
 
-        assertEquals(4, g.bars.size)
-        assertEquals(86f, g.bottom, 0.001f)
-        assertEquals(13f, g.bars.first().left, 0.001f)
-        assertEquals(74f * 0.055f, g.gap, 0.001f)
+            assertEquals(4, g.bars.size)
+            assertTrue(g.gap > 0f)
+            assertTrue(g.barWidth > 0f)
+            g.bars.forEach { bar ->
+                assertEquals(g.bottom, bar.bottom, 0.001f)
+                assertEquals(g.barWidth, bar.width, 0.001f)
+                assertTrue(bar.left >= 0f)
+                assertTrue(bar.right <= g.width)
+                assertTrue(bar.top >= 0f)
+                assertTrue(bar.cornerRadius > 0f)
+                assertTrue(bar.cornerRadius <= bar.width / 2f + 0.001f)
+            }
+            assertTrue(g.bars.zipWithNext().all { (a, b) -> b.height > a.height })
+        }
+    }
 
-        g.bars.forEach { bar ->
-            assertEquals(g.bottom, bar.bottom, 0.001f)
-            assertEquals(g.barWidth, bar.width, 0.001f)
-            assertTrue(bar.left >= 0f)
-            assertTrue(bar.right <= g.width)
-            assertTrue(bar.top >= 0f)
-            assertTrue(bar.cornerRadius >= 0f)
-        }
-        assertTrue(g.bars.zipWithNext().all { (a, b) -> b.height > a.height })
-        listOf(20f, 36f, 52f, 68f).zip(g.bars.map { it.height }).forEach { (expected, actual) ->
-            assertEquals(expected, actual, 0.001f)
-        }
+    @Test
+    fun `mobile styles expose distinct pixel proportions`() {
+        val classic = PixelStatusBarGeometry.mobileGlyph(100f, 100f, PixelMobileBarStyle.CLASSIC)
+        val compact = PixelStatusBarGeometry.mobileGlyph(100f, 100f, PixelMobileBarStyle.COMPACT)
+        val tall = PixelStatusBarGeometry.mobileGlyph(100f, 100f, PixelMobileBarStyle.TALL)
+
+        assertEquals(86f, classic.bottom, 0.001f)
+        assertEquals(87f, compact.bottom, 0.001f)
+        assertEquals(88f, tall.bottom, 0.001f)
+        assertTrue(compact.gap < classic.gap)
+        assertTrue(tall.bars.last().height > classic.bars.last().height)
+        assertTrue(classic.bars.first().height < classic.bars.last().height)
+    }
+
+    @Test
+    fun `mobile intrinsic widths are stable and style specific`() {
+        assertEquals(15f, PixelStatusBarGeometry.mobileWidthDp(PixelMobileBarStyle.CLASSIC), 0.001f)
+        assertEquals(13.5f, PixelStatusBarGeometry.mobileWidthDp(PixelMobileBarStyle.COMPACT), 0.001f)
+        assertEquals(14.5f, PixelStatusBarGeometry.mobileWidthDp(PixelMobileBarStyle.TALL), 0.001f)
     }
 
     @Test
