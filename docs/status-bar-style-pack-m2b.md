@@ -130,6 +130,59 @@ app/src/main/java/com/ekoehler/expressivecutout/statusbar/Android16StatusBarIcon
 - numeric level remains centered
 - levels `7`, `19`, `67`, and `100` are covered by dedicated goldens
 
+## M2B.7 — Real status sources
+
+M2B.7 fixes the actual data-source problem behind the failed quick fixes. The earlier patches changed renderer-level tint and label visibility, but the runtime state still did not have a live source for status-bar appearance and could still miss the default-data SIM network type.
+
+### Auto color
+
+The Auto color path now follows the same architecture class of O.status without copying visuals or assets:
+
+- Shizuku owns a `StatusBarAppearanceUserService`.
+- The user service starts `/system/bin/logcat -v threadtime WindowManager:D *:S`.
+- It parses `updateSystemBarAttributes` and `statusBarAprRegions=`.
+- It correlates the appearance event with the current focused `Window{...}`.
+- It debounces duplicate events.
+- It falls back to `/system/bin/dumpsys window` and `mLastAppearance=`.
+- It emits only a normalized `LIGHT_STATUS_BARS` boolean back to the app process.
+
+The app process converts that boolean into `SystemBarAppearanceSnapshot(globalAppearance = 0x8 or 0)`, and the existing resolver keeps the Android semantic intact:
+
+- `LIGHT_STATUS_BARS` = dark icons.
+- missing flag = light icons.
+
+### Mobile network label
+
+M2B.7 keeps the renderer fail-closed:
+
+- Wi-Fi connected hides the mobile text label.
+- Mobile data without Wi-Fi can show the label if a real network type exists.
+- Missing network type does not invent `5G`, `LTE`, or `4G+`.
+
+The Shizuku telephony user service now resolves display info from the default data subscription before falling back to the base `TelephonyManager`, which avoids reading the wrong SIM on dual-SIM devices.
+
+### Diagnostic logs
+
+Use:
+
+```text
+adb logcat -d | grep -E "StatusBarAuto|StatusBarSignal"
+```
+
+Expected useful lines include:
+
+```text
+AUTO_APPEARANCE monitor=ready shizuku=READY
+AUTO_APPEARANCE focus=<window-id>
+AUTO_APPEARANCE event focusedWindow=<window-id> lightStatusBars=true|false
+AUTO_APPEARANCE snapshot source=dumpsys_window lightStatusBars=true|false
+AUTO_APPEARANCE callback lightStatusBars=true|false
+STATUS_BAR_SIGNAL direct defaultDataSubId=<id> fallbackNetwork=<type>
+STATUS_BAR_SIGNAL direct network=<type> override=<override>
+```
+
+No SSID, phone number, IMSI, ICCID or personal identifiers should be printed.
+
 ## Golden visual gate
 
 The JVM golden scene uses `scene=status-bar-golden-v3`.
@@ -157,10 +210,11 @@ The test entry point remains:
 ./gradlew testDebugUnitTest --no-daemon
 ```
 
-## Families preserved but not redesigned in M2B.5
+## Families preserved but not redesigned in M2B.7
 
 - Default / One UI
 - Pixel 15
+- Pixel 16/17 visual geometry
 - HyperOS
 - Nothing OS 5
 - iOS 26 / iOS 27 measured geometry
@@ -169,9 +223,9 @@ The test entry point remains:
 
 Still not fixed here:
 
-- Mobile signal strength does not reliably reflect real intensity if the data source does not deliver it.
-- Network type badge may not appear reliably in runtime real device data.
-- Auto contrast / color switching does not respond correctly to the background.
-- Wi-Fi connected can still hide mobile signal in some real states if the data source does not provide both cleanly.
+- Pixel visual design is still considered `NO PASS` by product review.
+- Mobile signal strength still depends on platform/OEM signal data quality.
+- If Shizuku is not ready, Auto color falls back safely instead of guessing.
+- If TelephonyDisplayInfo and dumpsys both fail, the mobile text label remains hidden instead of inventing a label.
 
-M2B.5 only redesigns the Pixel visual family. It does not invent runtime network data.
+M2B.7 fixes runtime source ownership and diagnostics. It does not redesign Pixel.
