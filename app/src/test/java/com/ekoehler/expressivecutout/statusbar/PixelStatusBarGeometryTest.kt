@@ -30,17 +30,20 @@ class PixelStatusBarGeometryTest {
         val g = PixelStatusBarGeometry.wifiGlyph(side)
 
         assertEquals(50f, g.centerX, 0.001f)
-        assertEquals(54.5f, g.centerY, 0.001f)
-        listOf(19f, 30f, 41f).zip(g.radii).forEach { (expected, actual) ->
+        assertEquals(72f, g.centerY, 0.001f)
+        listOf(16f, 30f, 44f).zip(g.radii).forEach { (expected, actual) ->
             assertEquals(expected, actual, 0.001f)
         }
         assertEquals(8.2f, g.strokeWidth, 0.001f)
         assertEquals(220f, g.startAngle, 0.001f)
         assertEquals(100f, g.sweepAngle, 0.001f)
         assertEquals(g.centerX, g.dotX, 0.001f)
-        assertEquals(79f, g.dotY, 0.001f)
+        assertEquals(84f, g.dotY, 0.001f)
         assertTrue(g.dotRadius > 0f)
         assertTrue(g.radii.zipWithNext().all { (a, b) -> b > a })
+        val innerArcTop = g.centerY - g.radii.first()
+        assertTrue("inner arc must sit visibly above the dot", g.dotY - innerArcTop >= side * 0.20f)
+        assertTrue("inner arc must remain distinct from the dot", g.dotY - innerArcTop <= side * 0.35f)
     }
 
     @Test

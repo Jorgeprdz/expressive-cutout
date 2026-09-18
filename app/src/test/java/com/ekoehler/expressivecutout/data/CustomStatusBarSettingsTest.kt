@@ -12,6 +12,7 @@ class CustomStatusBarSettingsTest {
         assertEquals(1f, d.masterScale)
         assertEquals(1f, d.clockScale)
         assertEquals(1f, d.systemIconsScale)
+        assertEquals(1f, d.wifiScale)
         assertEquals(4f, d.systemIconsSpacingDp)
         assertEquals(1f, d.batteryScale)
         assertEquals(PixelMobileBarStyle.CLASSIC, d.mobileBarStyle)
@@ -26,6 +27,7 @@ class CustomStatusBarSettingsTest {
             clockOffsetXDp = 200f,
             clockOffsetYDp = -200f,
             systemIconsScale = 3f,
+            wifiScale = 4f,
             systemIconsSpacingDp = -8f,
             systemIconsOffsetXDp = -200f,
             systemIconsOffsetYDp = 200f,
@@ -38,6 +40,7 @@ class CustomStatusBarSettingsTest {
         assertEquals(CustomStatusBarSettings.MAX_OFFSET_DP, s.clockOffsetXDp)
         assertEquals(-CustomStatusBarSettings.MAX_OFFSET_DP, s.clockOffsetYDp)
         assertEquals(CustomStatusBarSettings.MAX_COMPONENT_SCALE, s.systemIconsScale)
+        assertEquals(CustomStatusBarSettings.MAX_COMPONENT_SCALE, s.wifiScale)
         assertEquals(CustomStatusBarSettings.MIN_SPACING_DP, s.systemIconsSpacingDp)
         assertEquals(-CustomStatusBarSettings.MAX_OFFSET_DP, s.systemIconsOffsetXDp)
         assertEquals(CustomStatusBarSettings.MAX_OFFSET_DP, s.systemIconsOffsetYDp)
@@ -58,12 +61,14 @@ class CustomStatusBarSettingsTest {
             masterScale = 1.2f,
             clockScale = 0.9f,
             systemIconsScale = 1.1f,
+            wifiScale = 1.25f,
             batteryScale = 0.8f,
         )
         val effective = PixelStatusBarScale.resolve(s)
 
         assertEquals(1.08f, effective.clock, 0.0001f)
         assertEquals(1.32f, effective.systemIcons, 0.0001f)
+        assertEquals(1.65f, effective.wifi, 0.0001f)
         assertEquals(0.96f, effective.battery, 0.0001f)
     }
 

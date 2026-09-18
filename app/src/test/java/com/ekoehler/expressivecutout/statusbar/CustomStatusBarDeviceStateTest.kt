@@ -9,6 +9,33 @@ import org.junit.Test
 class CustomStatusBarDeviceStateTest {
 
     @Test
+    fun `platform cellular level maps directly and clamps to four bars`() {
+        assertEquals(null, StatusBarSignalLevelMapper.cellularFromPlatformLevel(null))
+        assertEquals(0, StatusBarSignalLevelMapper.cellularFromPlatformLevel(-1))
+        assertEquals(0, StatusBarSignalLevelMapper.cellularFromPlatformLevel(0))
+        assertEquals(2, StatusBarSignalLevelMapper.cellularFromPlatformLevel(2))
+        assertEquals(4, StatusBarSignalLevelMapper.cellularFromPlatformLevel(4))
+        assertEquals(4, StatusBarSignalLevelMapper.cellularFromPlatformLevel(7))
+    }
+
+    @Test
+    fun `cellular signal update preserves connection metadata`() {
+        val start = CustomStatusBarDeviceState(
+            cellular = StatusBarCellularState(
+                connected = true,
+                level = null,
+                networkType = StatusBarNetworkType.FIVE_G,
+            ),
+        )
+
+        val updated = CustomStatusBarDeviceReducer.withCellularSignal(start, 3)
+
+        assertEquals(true, updated.cellular.connected)
+        assertEquals(3, updated.cellular.level)
+        assertEquals(StatusBarNetworkType.FIVE_G, updated.cellular.networkType)
+    }
+
+    @Test
     fun `battery update preserves unrelated device state`() {
         val initial = CustomStatusBarDeviceState(
             timeText = "12:34",
