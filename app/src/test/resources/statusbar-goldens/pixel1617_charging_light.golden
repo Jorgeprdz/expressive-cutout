@@ -1,0 +1,9 @@
+scene=status-bar-golden-v1
+canvas=240x36 background=light
+style=PIXEL_16_17 display=Pixel 16/17 signature=pixel1617-data-rich
+clock=9:41 weight=SEMIBOLD sizeSp=14.20
+network=5G mode=PROMINENT weight=SEMIBOLD sizeSp=10.20
+signal=DOT_MATRIX level=4 active=4 geometry=active-dot-matrix
+wifi=PIXEL_COMPACT_ARCS level=4 arcs=3 stroke=compact-bold
+battery=NUMERIC_CAPSULE_PROMINENT level=67 charging=true numeric=true shape=green-number-pill-bolt
+spacingDp=2.40 edgeInsetDp=7.00
