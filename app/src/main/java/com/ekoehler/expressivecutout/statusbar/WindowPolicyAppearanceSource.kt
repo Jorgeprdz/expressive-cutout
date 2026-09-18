@@ -102,13 +102,16 @@ internal class ShizukuWindowAppearanceSource(
         }.getOrNull()
     }
 
-    private fun throwableSummary(error: Throwable): String =
-        generateSequence<Throwable?>(error) { it.cause }
-            .filterNotNull()
-            .take(4)
-            .joinToString(" <- ") { cause ->
-                "${cause.javaClass.simpleName}:${cause.message}"
-            }
+    private fun throwableSummary(error: Throwable): String {
+        val parts = mutableListOf<String>()
+        var current: Throwable? = error
+        repeat(4) {
+            val cause = current ?: return@repeat
+            parts += "${cause.javaClass.simpleName}:${cause.message}"
+            current = cause.cause
+        }
+        return parts.joinToString(" <- ")
+    }
 
     private fun relevantLines(raw: String): String = raw.lineSequence()
         .map(String::trim)
