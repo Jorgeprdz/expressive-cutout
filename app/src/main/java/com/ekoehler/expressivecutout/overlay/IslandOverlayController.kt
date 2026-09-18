@@ -21,10 +21,14 @@ import android.view.MotionEvent
 import android.view.Surface
 import android.view.View
 import android.view.ViewTreeObserver
+import android.view.WindowInsets
 import android.view.WindowManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
@@ -60,6 +64,7 @@ import com.ekoehler.expressivecutout.data.GlobalAction
 import com.ekoehler.expressivecutout.data.HorizontalCutoutMode
 import com.ekoehler.expressivecutout.data.SatellitePosition
 import com.ekoehler.expressivecutout.data.CutoutColor
+import com.ekoehler.expressivecutout.data.CustomStatusBarAppearancePreference
 import com.ekoehler.expressivecutout.data.DynamicRole
 import com.ekoehler.expressivecutout.data.DynamicTilePreferences
 import com.ekoehler.expressivecutout.data.EventPreferences
@@ -80,9 +85,24 @@ import com.ekoehler.expressivecutout.data.PhoneTilePreferences
 import com.ekoehler.expressivecutout.data.PhoneTileSettings
 import com.ekoehler.expressivecutout.data.TimerTilePreferences
 import com.ekoehler.expressivecutout.data.TimerTileSettings
+import com.ekoehler.expressivecutout.data.StatusBarPreferences
 import com.ekoehler.expressivecutout.service.CutoutNotificationListenerService
 import com.ekoehler.expressivecutout.service.ProgressData
+import com.ekoehler.expressivecutout.statusbar.CustomStatusBarActivationPolicy
+import com.ekoehler.expressivecutout.statusbar.CustomStatusBarDeviceStateStore
+import com.ekoehler.expressivecutout.statusbar.IslandOccupancy
+import com.ekoehler.expressivecutout.statusbar.PixelStatusBarLayer
+import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceMode
+import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceResolver
+import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceState
+import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutEngine
+import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutInput
+import com.ekoehler.expressivecutout.statusbar.StatusBarRect
+import com.ekoehler.expressivecutout.statusbar.StatusBarSystemTheme
 import com.ekoehler.expressivecutout.system.PermissionUsageMonitor
+import com.ekoehler.expressivecutout.system.ShizukuState
+import com.ekoehler.expressivecutout.system.ShizukuStatus
+import com.ekoehler.expressivecutout.system.StatusBarDisableOwner
 import com.ekoehler.expressivecutout.system.StatusBarIconController
 import com.ekoehler.expressivecutout.ui.theme.ExpressiveCutoutTheme
 import kotlinx.coroutines.CoroutineScope
@@ -116,7 +136,10 @@ import kotlin.math.roundToInt
  * smooth. It relies on a semi-private API and degrades gracefully (window stays fully touchable)
  * where that isn't available.
  */
-class IslandOverlayController(private val context: Context) {
+class IslandOverlayController(
+    private val context: Context,
+    private val systemBarAppearance: kotlinx.coroutines.flow.StateFlow<StatusBarAppearanceState?>,
+) {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private val windowManager = requireNotNull(context.getSystemService<WindowManager>())
@@ -135,6 +158,7 @@ class IslandOverlayController(private val context: Context) {
     private val assistantTilePreferences = AssistantTilePreferences(context)
     private val appPreferences = AppPreferences(context)
     private val permissionDotPreferences = PermissionDotPreferences(context)
+    private val statusBarPreferences = StatusBarPreferences(context)
     private val density = context.resources.displayMetrics.density
 
     /**
@@ -171,6 +195,10 @@ class IslandOverlayController(private val context: Context) {
      * and only the fade is seen.
      */
     private val rotationSnapState = MutableStateFlow(false)
+    private val expandedState = MutableStateFlow(false)
+    private val customStatusBarRenderState = MutableStateFlow(false)
+    private val customStatusBarAppearanceModeState = MutableStateFlow(StatusBarAppearanceMode.AUTO)
+    private val customStatusBarLockedState = MutableStateFlow(false)
 
     private val displayHeightPx: Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -383,6 +411,7 @@ class IslandOverlayController(private val context: Context) {
         observeSignals()
         observeVisibility()
         observeMirroredKey()
+        observeCustomStatusBar()
     }
 
     /**
@@ -398,6 +427,7 @@ class IslandOverlayController(private val context: Context) {
         dismissJob?.cancel()
         windowResizeJob?.cancel()
         StatusBarIconController.clearTransientStatusIconSuppression()
+        StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
         runCatching { context.unregisterReceiver(lockReceiver) }
         removeOverlay()
         lifecycleOwner.onDestroy()
@@ -429,6 +459,7 @@ class IslandOverlayController(private val context: Context) {
         val isKeyguardLocked = keyguardManager?.isKeyguardLocked == true
         val isDeviceLockedActual = keyguardManager?.isDeviceLocked == true
         isDeviceLocked = isDeviceLockedActual
+        customStatusBarLockedState.value = isDeviceLockedActual
         val shouldHideLock = behaviourState.value.hideOnLockscreen && isKeyguardLocked
         val isLandscapeHidden = behaviourState.value.horizontalCutoutMode == HorizontalCutoutMode.HIDDEN ||
             behaviourState.value.hideInLandscape
@@ -636,6 +667,7 @@ class IslandOverlayController(private val context: Context) {
      */
     private fun addOverlay() {
         val view = ComposeView(context).apply {
+            val hostView = this
             setViewTreeLifecycleOwner(lifecycleOwner)
             setViewTreeViewModelStoreOwner(lifecycleOwner)
             setViewTreeSavedStateRegistryOwner(lifecycleOwner)
@@ -665,6 +697,11 @@ class IslandOverlayController(private val context: Context) {
                 val permissionDotVertical by permissionDotVerticalState.collectAsStateWithLifecycle()
                 // The dot settings screen shows every enabled dot here, switch on or not.
                 val permissionDotPreview by PermissionDotPreviewBus.active.collectAsStateWithLifecycle()
+                val customStatusBarVisible by customStatusBarRenderState.collectAsStateWithLifecycle()
+                val customAppearanceMode by customStatusBarAppearanceModeState.collectAsStateWithLifecycle()
+                val customDeviceState by CustomStatusBarDeviceStateStore.state.collectAsStateWithLifecycle()
+                val currentSystemBarAppearance by systemBarAppearance.collectAsStateWithLifecycle()
+                val isExpandedForStatusBar by expandedState.collectAsStateWithLifecycle()
                 val isNoExpandLandscape = orientation == Configuration.ORIENTATION_LANDSCAPE &&
                     (behaviour.horizontalCutoutMode == HorizontalCutoutMode.NORMAL_ONLY ||
                      behaviour.horizontalCutoutMode == HorizontalCutoutMode.STICK_TO_CAMERA)
@@ -674,7 +711,49 @@ class IslandOverlayController(private val context: Context) {
                 val rot270 = rotation == Surface.ROTATION_270
 
                 ExpressiveCutoutTheme {
-                    DynamicIsland(
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (customStatusBarVisible) {
+                            val islandVisible = event != null ||
+                                (behaviour.showsWhenEmpty && behaviour.cutoutEnabled)
+                            val statusLayout = customStatusBarLayout(
+                                hostView,
+                                islandVisible = islandVisible,
+                                satelliteVisible = satellite != null && !isExpandedForStatusBar,
+                            )
+                            val systemTheme =
+                                if ((context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                                    Configuration.UI_MODE_NIGHT_YES
+                                ) {
+                                    StatusBarSystemTheme.DARK
+                                } else {
+                                    StatusBarSystemTheme.LIGHT
+                                }
+                            val leftPoint = statusLayout.leftContentRegion
+                            val rightPoint = statusLayout.rightContentRegion
+                            val leftForeground = StatusBarAppearanceResolver.resolve(
+                                mode = customAppearanceMode,
+                                state = currentSystemBarAppearance,
+                                x = leftPoint?.centerX ?: 0,
+                                y = leftPoint?.centerY ?: 0,
+                                systemTheme = systemTheme,
+                            )
+                            val rightForeground = StatusBarAppearanceResolver.resolve(
+                                mode = customAppearanceMode,
+                                state = currentSystemBarAppearance,
+                                x = rightPoint?.centerX ?: displayWidthPx,
+                                y = rightPoint?.centerY ?: 0,
+                                systemTheme = systemTheme,
+                            )
+                            PixelStatusBarLayer(
+                                state = customDeviceState,
+                                leftForeground = leftForeground,
+                                rightForeground = rightForeground,
+                                layout = statusLayout,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+
+                        DynamicIsland(
                         event = event,
                         collapsed = layout.collapsed,
                         expanded = layout.expanded,
@@ -726,6 +805,7 @@ class IslandOverlayController(private val context: Context) {
                         onReplyActiveChange = ::onReplyActive,
                         onDismiss = ::onDismiss,
                     )
+                    }
                 }
             }
         }
@@ -744,6 +824,41 @@ class IslandOverlayController(private val context: Context) {
         composeView?.let { windowManager.removeViewImmediate(it) }
         composeView = null
         insetsListener = null
+    }
+
+    /** Holds native suppression before exposing the visual layer, so duplicate bars never linger. */
+    private fun observeCustomStatusBar() = scope.launch {
+        combine(
+            statusBarPreferences.customStatusBarEnabled,
+            statusBarPreferences.customStatusBarAppearance,
+            ShizukuState.status,
+            orientationState,
+            customStatusBarLockedState,
+        ) { enabled, appearance, shizuku, orientation, locked ->
+            CustomStatusBarWish(enabled, appearance, shizuku, orientation, locked)
+        }.distinctUntilChanged().collect { wish ->
+            customStatusBarAppearanceModeState.value = when (wish.appearance) {
+                CustomStatusBarAppearancePreference.AUTO -> StatusBarAppearanceMode.AUTO
+                CustomStatusBarAppearancePreference.LIGHT -> StatusBarAppearanceMode.FORCE_LIGHT_FOREGROUND
+                CustomStatusBarAppearancePreference.DARK -> StatusBarAppearanceMode.FORCE_DARK_FOREGROUND
+            }
+            val decision = CustomStatusBarActivationPolicy.decide(
+                enabled = wish.enabled && !wish.locked,
+                shizukuReady = wish.shizuku == ShizukuStatus.READY,
+                portraitSupported = wish.orientation == Configuration.ORIENTATION_PORTRAIT,
+            )
+            val applied = decision.nativeRequest?.let { request ->
+                StatusBarIconController.setOwnerRequest(
+                    StatusBarDisableOwner.CUSTOM_STATUS_BAR,
+                    request,
+                )
+            } ?: run {
+                StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+                false
+            }
+            customStatusBarRenderState.value = decision.canRender && applied
+            syncWindowSize()
+        }
     }
 
     /** Mirrors the user's per-event icon overrides into [customIcons]. */
@@ -1347,12 +1462,19 @@ class IslandOverlayController(private val context: Context) {
             return ((islandLengthDp + TOUCH_MARGIN_DP * 2) * density).toInt()
         }
         val bonus = currentHeightBonusDp(expanded)
-        return ((dims.offsetYDp + dims.heightDp + bonus + WINDOW_MARGIN_DP) * density).toInt()
+        val islandHeight = ((dims.offsetYDp + dims.heightDp + bonus + WINDOW_MARGIN_DP) * density).toInt()
+        return if (customStatusBarRenderState.value) maxOf(islandHeight, statusBarHeightPx()) else islandHeight
     }
 
     /** Wide enough for whichever state is widest — used for the initial, safe window size. */
-    private fun windowWidthPx(layout: IslandLayout): Int =
-        maxOf(windowWidthPx(layout, expanded = false), windowWidthPx(layout, expanded = true))
+    private fun windowWidthPx(layout: IslandLayout): Int {
+        if (customStatusBarRenderState.value &&
+            currentOrientation == Configuration.ORIENTATION_PORTRAIT
+        ) {
+            return displayWidthPx
+        }
+        return maxOf(windowWidthPx(layout, expanded = false), windowWidthPx(layout, expanded = true))
+    }
 
     /**
      * Width needed to contain just one state's pill, centred, with room for its horizontal offset and a
@@ -1772,6 +1894,8 @@ class IslandOverlayController(private val context: Context) {
                     dismissJob?.cancel()
                     forcedExpanded.value = targetExpanded
                     expanded = targetExpanded
+        expandedState.value = targetExpanded
+            expandedState.value = targetExpanded
                     currentEvent.value = previewEvent
                 } else {
                     forcedExpanded.value = if (isNoExpandLandscape) false else null
@@ -2777,6 +2901,76 @@ class IslandOverlayController(private val context: Context) {
      * `SYSTEM_ALERT_WINDOW`, which is what lets the island draw with no draw-over-apps permission
      * at all.
      */
+    private fun statusBarHeightPx(): Int {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val top = windowManager.currentWindowMetrics.windowInsets
+                .getInsetsIgnoringVisibility(WindowInsets.Type.statusBars())
+                .top
+            if (top > 0) return top
+        }
+        val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        if (resourceId != 0) return context.resources.getDimensionPixelSize(resourceId)
+        return (48f * density).roundToInt()
+    }
+
+    private fun customStatusBarLayout(
+        view: View,
+        islandVisible: Boolean,
+        satelliteVisible: Boolean,
+    ) = StatusBarLayoutEngine.calculate(
+        StatusBarLayoutInput(
+            displayBounds = StatusBarRect(
+                left = 0,
+                top = 0,
+                right = (view.width.takeIf { it > 0 } ?: displayWidthPx),
+                bottom = displayHeightPx,
+            ),
+            statusBarBounds = StatusBarRect(
+                left = 0,
+                top = 0,
+                right = (view.width.takeIf { it > 0 } ?: displayWidthPx),
+                bottom = statusBarHeightPx(),
+            ),
+            occupancy = IslandOccupancy(
+                cutoutBounds = view.rootWindowInsets?.displayCutout?.boundingRects
+                    ?.maxByOrNull { it.width() * it.height() }
+                    ?.let { StatusBarRect(it.left, it.top, it.right, it.bottom) },
+                collapsedIslandBounds = if (islandVisible && !expandedState.value) {
+                    pillTouchRect(
+                        view.width.takeIf { it > 0 } ?: displayWidthPx,
+                        view.height.takeIf { it > 0 } ?: statusBarHeightPx(),
+                    ).let { StatusBarRect(it.left, it.top, it.right, it.bottom) }
+                } else {
+                    null
+                },
+                expandedIslandBounds = if (islandVisible && expandedState.value) {
+                    pillTouchRect(
+                        view.width.takeIf { it > 0 } ?: displayWidthPx,
+                        view.height.takeIf { it > 0 } ?: statusBarHeightPx(),
+                    ).let { StatusBarRect(it.left, it.top, it.right, it.bottom) }
+                } else {
+                    null
+                },
+                satelliteBounds = if (satelliteVisible) {
+                    satelliteTouchRect(
+                        view.width.takeIf { it > 0 } ?: displayWidthPx,
+                        view.height.takeIf { it > 0 } ?: statusBarHeightPx(),
+                    )?.let { StatusBarRect(it.left, it.top, it.right, it.bottom) }
+                } else {
+                    null
+                },
+            ),
+        ),
+    )
+
+    private data class CustomStatusBarWish(
+        val enabled: Boolean,
+        val appearance: CustomStatusBarAppearancePreference,
+        val shizuku: ShizukuStatus,
+        val orientation: Int,
+        val locked: Boolean,
+    )
+
     private fun buildLayoutParams(): WindowManager.LayoutParams {
         @Suppress("DEPRECATION")
         val overlayType = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY

@@ -11,6 +11,10 @@ import com.ekoehler.expressivecutout.core.IslandEventBus
 import com.ekoehler.expressivecutout.events.MediaPlaybackMonitor
 import com.ekoehler.expressivecutout.events.SystemEventMonitor
 import com.ekoehler.expressivecutout.overlay.IslandOverlayController
+import com.ekoehler.expressivecutout.statusbar.ShizukuWindowAppearanceSource
+import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceController
+import com.ekoehler.expressivecutout.system.ShizukuState
+import com.ekoehler.expressivecutout.system.ShizukuStatus
 import com.ekoehler.expressivecutout.permissions.Permissions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +41,10 @@ class CutoutAccessibilityService : AccessibilityService() {
     private var overlay: IslandOverlayController? = null
     private var systemEvents: SystemEventMonitor? = null
     private var mediaPlayback: MediaPlaybackMonitor? = null
+    private var statusBarAppearanceController: StatusBarAppearanceController? = null
+    private var statusBarAppearanceJob: Job? = null
+    private var statusBarAppearanceReconcileJob: Job? = null
+    private var shizukuAppearanceJob: Job? = null
     private var lastAssistantKey: String? = null
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -48,8 +56,21 @@ class CutoutAccessibilityService : AccessibilityService() {
      */
     override fun onServiceConnected() {
         super.onServiceConnected()
-        overlay = IslandOverlayController(this).also { it.start() }
+        val appearanceController = StatusBarAppearanceController(
+            ShizukuWindowAppearanceSource(this),
+        )
+        statusBarAppearanceController = appearanceController
+        statusBarAppearanceJob = appearanceController.start(serviceScope)
+        shizukuAppearanceJob = serviceScope.launch {
+            ShizukuState.status.collectLatest { status ->
+                if (status == ShizukuStatus.READY) appearanceController.reconcile()
+            }
+        }
         systemEvents = SystemEventMonitor(this).also { it.start() }
+        overlay = IslandOverlayController(this, appearanceController.state).also { it.start() }
+        statusBarAppearanceReconcileJob = serviceScope.launch {
+            appearanceController.reconcile()
+        }
         mediaPlayback = MediaPlaybackMonitor(this).also { it.start() }
         instance = this
         _bound.value = true
@@ -140,6 +161,7 @@ class CutoutAccessibilityService : AccessibilityService() {
 
         if (ev.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             ForegroundAppBus.update(pkg)
+            scheduleStatusBarAppearanceReconcile()
         }
 
         if (isAssistantPackage(pkg)) {
@@ -220,6 +242,15 @@ class CutoutAccessibilityService : AccessibilityService() {
         overlay?.onOrientationChanged(newConfig.orientation)
     }
 
+    /** One-shot WindowManager reconciliation after focus settles; never a periodic polling loop. */
+    private fun scheduleStatusBarAppearanceReconcile() {
+        statusBarAppearanceReconcileJob?.cancel()
+        statusBarAppearanceReconcileJob = serviceScope.launch {
+            delay(150L)
+            statusBarAppearanceController?.reconcile()
+        }
+    }
+
     /** Required by the framework. The island has no interruptible work of its own. */
     override fun onInterrupt() = Unit
 
@@ -247,6 +278,13 @@ class CutoutAccessibilityService : AccessibilityService() {
     private fun teardown() {
         notificationRecoveryJob?.cancel()
         notificationRecoveryJob = null
+        statusBarAppearanceReconcileJob?.cancel()
+        statusBarAppearanceReconcileJob = null
+        statusBarAppearanceJob?.cancel()
+        statusBarAppearanceJob = null
+        shizukuAppearanceJob?.cancel()
+        shizukuAppearanceJob = null
+        statusBarAppearanceController = null
         _bound.value = false
         instance = null
         mediaPlayback?.stop()

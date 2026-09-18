@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,29 +40,36 @@ import kotlin.math.roundToInt
 @Composable
 internal fun PixelStatusBarLayer(
     state: CustomStatusBarDeviceState,
-    foreground: StatusBarForeground,
+    leftForeground: StatusBarForeground,
+    rightForeground: StatusBarForeground,
     layout: StatusBarLayoutResult,
     modifier: Modifier = Modifier,
 ) {
-    val tint by animateColorAsState(
-        targetValue = if (foreground == StatusBarForeground.LIGHT) Color.White else Color.Black,
+    val leftTint by animateColorAsState(
+        targetValue = if (leftForeground == StatusBarForeground.LIGHT) Color.White else Color.Black,
         animationSpec = tween(durationMillis = 160),
-        label = "customStatusBarTint",
+        label = "customStatusBarLeftTint",
+    )
+    val rightTint by animateColorAsState(
+        targetValue = if (rightForeground == StatusBarForeground.LIGHT) Color.White else Color.Black,
+        animationSpec = tween(durationMillis = 160),
+        label = "customStatusBarRightTint",
     )
 
+    val density = LocalDensity.current
     Box(modifier = modifier) {
         layout.leftContentRegion?.let { left ->
             Box(
                 modifier = Modifier
                     .offset { IntOffset(left.left, left.top) }
-                    .width(left.width.dp)
-                    .height(left.height.dp)
+                    .width(with(density) { left.width.toDp() })
+                    .height(with(density) { left.height.toDp() })
                     .padding(start = 8.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 Text(
                     text = state.timeText,
-                    color = tint,
+                    color = leftTint,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -73,8 +81,8 @@ internal fun PixelStatusBarLayer(
             Row(
                 modifier = Modifier
                     .offset { IntOffset(right.left, right.top) }
-                    .width(right.width.dp)
-                    .height(right.height.dp)
+                    .width(with(density) { right.width.toDp() })
+                    .height(with(density) { right.height.toDp() })
                     .padding(end = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
@@ -87,21 +95,21 @@ internal fun PixelStatusBarLayer(
                                 StatusBarNetworkType.LTE -> "LTE"
                                 StatusBarNetworkType.FIVE_G -> "5G"
                             },
-                            color = tint,
+                            color = rightTint,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                         )
                     }
-                    PixelMobileGlyph(level = state.cellular.level, tint = tint)
+                    PixelMobileGlyph(level = state.cellular.level, tint = rightTint)
                 }
                 if (state.wifi.connected) {
-                    PixelWifiGlyph(level = state.wifi.level, tint = tint)
+                    PixelWifiGlyph(level = state.wifi.level, tint = rightTint)
                 }
                 PixelBatteryGlyph(
                     level = state.battery.level,
                     charging = state.battery.charging,
-                    tint = tint,
+                    tint = rightTint,
                 )
             }
         }
@@ -185,7 +193,7 @@ internal fun PixelBatteryGlyph(
         val radius = 2.2.dp.toPx()
 
         drawRoundRect(
-            color = tint,
+            color = rightTint,
             topLeft = Offset(0f, stroke / 2f),
             size = Size(bodyWidth, size.height - stroke),
             cornerRadius = CornerRadius(radius),
@@ -202,7 +210,7 @@ internal fun PixelBatteryGlyph(
         val fillWidth = (bodyWidth - inset * 2f).coerceAtLeast(0f) * fraction
         if (fillWidth > 0f) {
             drawRoundRect(
-                color = tint,
+                color = rightTint,
                 topLeft = Offset(inset, inset),
                 size = Size(fillWidth, (size.height - inset * 2f).coerceAtLeast(0f)),
                 cornerRadius = CornerRadius(1.2.dp.toPx()),
