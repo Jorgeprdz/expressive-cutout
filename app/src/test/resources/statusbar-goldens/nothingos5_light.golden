@@ -1,9 +1,9 @@
-scene=status-bar-golden-v2
+scene=status-bar-golden-v3
 canvas=240x36 background=light
 style=NOTHING_OS_5 display=Nothing OS 5 signature=nothingos5-minimal
 clock=9:41 weight=MEDIUM sizeSp=13.80
 network=hidden mode=HIDDEN weight=MEDIUM sizeSp=8.90
 signal=COMPACT_MINIMAL_BARS level=4 active=4 geometry=minimal-monochrome-bars
-wifi=NOTHING_MINIMAL_ARCS level=4 arcs=3 stroke=minimal-thin
-battery=SOLID_CAPSULE_MINIMAL level=67 charging=false numeric=false shape=minimal-solid-pill
+wifi=NOTHING_MINIMAL_ARCS level=4 activeParts=3 stroke=minimal-thin
+battery=SOLID_CAPSULE_MINIMAL level=67 fill=0.670 charging=false numeric=false shape=minimal-solid-pill
 spacingDp=3.40 edgeInsetDp=8.00
