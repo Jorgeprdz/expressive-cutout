@@ -1,4 +1,4 @@
-scene=status-bar-golden-v1
+scene=status-bar-golden-v2
 canvas=240x36 background=light
 style=NOTHING_OS_5 display=Nothing OS 5 signature=nothingos5-minimal
 clock=9:41 weight=MEDIUM sizeSp=13.80
