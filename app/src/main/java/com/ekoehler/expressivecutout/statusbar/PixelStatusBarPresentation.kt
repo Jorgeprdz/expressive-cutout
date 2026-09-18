@@ -7,6 +7,22 @@ internal object PixelStatusBarPresentation {
         if (mode != BatteryPercentageMode.OUTSIDE) return null
         return level?.coerceIn(0, 100)?.let { "${it}%" }
     }
+
+    fun networkTypeWidthDp(type: StatusBarNetworkType, scale: Float): Float {
+        val safe = scale.coerceAtLeast(0.1f)
+        val base = when (type) {
+            StatusBarNetworkType.FOUR_G,
+            StatusBarNetworkType.FIVE_G,
+            -> 14.5f
+            StatusBarNetworkType.LTE -> 17f
+        }
+        return base * safe
+    }
+
+    fun batteryPercentageWidthDp(text: String, scale: Float): Float {
+        val safe = scale.coerceAtLeast(0.1f)
+        return (text.length * 5.2f + 1.5f) * safe
+    }
 }
 
 internal object CustomStatusBarPreviewState {
