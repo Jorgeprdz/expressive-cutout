@@ -8,32 +8,36 @@ internal data class StatusBarRightGroupVisibility(
 /**
  * Pure fit policy for the right status-bar group.
  *
- * Network identity is more important than an optional outside battery percentage. This keeps
- * 5G/LTE/4G+ visible on compact layouts, including when Wi-Fi is connected and both cannot fit.
+ * Mobile network identity is only shown while the device is effectively on mobile data. When Wi-Fi
+ * is connected, the custom status bar should not show 5G/LTE/4G+ next to Wi-Fi.
  */
 internal object StatusBarRightGroupVisibilityPolicy {
     fun resolve(
+        wifiConnected: Boolean,
         networkAvailable: Boolean,
         outsidePercentageAvailable: Boolean,
         bothFit: Boolean,
         networkFitsWithoutPercentage: Boolean,
         percentageFitsWithoutNetwork: Boolean,
-    ): StatusBarRightGroupVisibility = when {
-        bothFit -> StatusBarRightGroupVisibility(
-            showNetwork = networkAvailable,
-            showPercentage = outsidePercentageAvailable,
-        )
-        networkFitsWithoutPercentage -> StatusBarRightGroupVisibility(
-            showNetwork = true,
-            showPercentage = false,
-        )
-        percentageFitsWithoutNetwork -> StatusBarRightGroupVisibility(
-            showNetwork = false,
-            showPercentage = true,
-        )
-        else -> StatusBarRightGroupVisibility(
-            showNetwork = false,
-            showPercentage = false,
-        )
+    ): StatusBarRightGroupVisibility {
+        val networkEligible = networkAvailable && !wifiConnected
+        return when {
+            bothFit -> StatusBarRightGroupVisibility(
+                showNetwork = networkEligible,
+                showPercentage = outsidePercentageAvailable,
+            )
+            networkEligible && networkFitsWithoutPercentage -> StatusBarRightGroupVisibility(
+                showNetwork = true,
+                showPercentage = false,
+            )
+            percentageFitsWithoutNetwork -> StatusBarRightGroupVisibility(
+                showNetwork = false,
+                showPercentage = true,
+            )
+            else -> StatusBarRightGroupVisibility(
+                showNetwork = false,
+                showPercentage = false,
+            )
+        }
     }
 }
