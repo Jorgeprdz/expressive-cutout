@@ -50,6 +50,16 @@ enum class BatteryPercentageMode {
     }
 }
 
+enum class IosBatteryColorMode {
+    MONOCHROME,
+    STATUS_COLOR;
+
+    companion object {
+        fun fromPersisted(raw: String?): IosBatteryColorMode =
+            entries.firstOrNull { it.name == raw } ?: MONOCHROME
+    }
+}
+
 data class CustomStatusBarSettings(
     val enabled: Boolean = false,
     val style: CustomStatusBarStyle = CustomStatusBarStyle.DEFAULT,
@@ -67,6 +77,7 @@ data class CustomStatusBarSettings(
     val batteryScale: Float = DEFAULT_COMPONENT_SCALE,
     val statusBarOffsetYDp: Float = 0f,
     val batteryPercentageMode: BatteryPercentageMode = BatteryPercentageMode.OFF,
+    val iosBatteryColorMode: IosBatteryColorMode = IosBatteryColorMode.MONOCHROME,
 ) {
     fun sanitized(): CustomStatusBarSettings = copy(
         masterScale = masterScale.coerceIn(MIN_MASTER_SCALE, MAX_MASTER_SCALE),
