@@ -4,6 +4,6 @@ style=PIXEL_15 display=Pixel 15 signature=pixel15-classic
 clock=9:41 weight=MEDIUM sizeSp=14.00
 network=5G mode=DISCREET weight=MEDIUM sizeSp=9.00
 signal=CLASSIC_BARS level=4 active=4 geometry=pixel-classic-bars
-wifi=CLASSIC_ARCS level=4 arcs=3 stroke=pixel-balanced
+wifi=CLASSIC_ARCS level=4 arcs=3 stroke=balanced
 battery=CLASSIC_ANDROID level=67 charging=false numeric=false shape=android-outline
 spacingDp=3.68 edgeInsetDp=8.00
