@@ -38,6 +38,42 @@ class StatusBarGoldenSceneTest {
     }
 
     @Test
+    fun `pixel1617 battery 7 matches golden`() {
+        assertGolden(
+            name = "pixel1617_battery_7_light",
+            style = CustomStatusBarStyle.PIXEL_16_17,
+            batteryLevel = 7,
+        )
+    }
+
+    @Test
+    fun `pixel1617 battery 19 matches golden`() {
+        assertGolden(
+            name = "pixel1617_battery_19_light",
+            style = CustomStatusBarStyle.PIXEL_16_17,
+            batteryLevel = 19,
+        )
+    }
+
+    @Test
+    fun `pixel1617 battery 67 matches golden`() {
+        assertGolden(
+            name = "pixel1617_battery_67_light",
+            style = CustomStatusBarStyle.PIXEL_16_17,
+            batteryLevel = 67,
+        )
+    }
+
+    @Test
+    fun `pixel1617 battery 100 matches golden`() {
+        assertGolden(
+            name = "pixel1617_battery_100_light",
+            style = CustomStatusBarStyle.PIXEL_16_17,
+            batteryLevel = 100,
+        )
+    }
+
+    @Test
     fun `hyperos light matches golden`() {
         assertGolden("hyperos_light", CustomStatusBarStyle.HYPER_OS)
     }
@@ -76,15 +112,24 @@ class StatusBarGoldenSceneTest {
     }
 
     @Test
-    fun `pixel1617 measured android16 icons reflect dynamic state`() {
+    fun `ios battery status color thresholds still pass`() {
+        assertEquals(IosBatteryStatusColorRole.NORMAL, IosBatteryStatusColors.roleFor(20))
+        assertEquals(IosBatteryStatusColorRole.YELLOW, IosBatteryStatusColors.roleFor(19))
+        assertEquals(IosBatteryStatusColorRole.YELLOW, IosBatteryStatusColors.roleFor(10))
+        assertEquals(IosBatteryStatusColorRole.RED, IosBatteryStatusColors.roleFor(9))
+    }
+
+    @Test
+    fun `pixel1617 redesigned icons reflect dynamic state`() {
         val full = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
         val low = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
 
         assertNotEquals(full, low)
-        assertTrue(low.contains("android16.wifi=viewBox=150x113 activeParts=1"))
-        assertTrue(low.contains("android16.signal=viewBox=149x108 active=1"))
+        assertTrue(low.contains("pixel1617.wifi=viewBox=144x112 activeParts=1 language=pixel-bold-arcs-v2"))
+        assertTrue(low.contains("pixel1617.signal=viewBox=132x108 active=1 language=pixel-capsule-bars-v2"))
         assertTrue(low.contains("level=19 fill=0.190"))
         assertTrue(low.contains("colorMode=critical-red"))
+        assertTrue(full.contains("mode=pixel-rounded-rect-v2 colorMode=pixel-fill"))
     }
 
     @Test
