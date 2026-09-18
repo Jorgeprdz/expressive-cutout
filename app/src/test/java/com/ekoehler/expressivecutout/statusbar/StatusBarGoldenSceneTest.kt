@@ -62,6 +62,31 @@ class StatusBarGoldenSceneTest {
     }
 
     @Test
+    fun `measured ios icons reflect dynamic state`() {
+        val ios26Full = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_26, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
+        val ios26Low = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_26, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
+        val ios27Full = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
+        val ios27Low = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
+
+        assertVisuallyDifferent(ios26Full, ios26Low)
+        assertVisuallyDifferent(ios27Full, ios27Low)
+        assertTrue(ios26Low.contains("ios26.batteryState=level=19 fill=0.190"))
+        assertTrue(ios27Low.contains("ios27.signalState=level=1 active=1"))
+    }
+
+    @Test
+    fun `pixel1617 measured android16 icons reflect dynamic state`() {
+        val full = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
+        val low = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
+
+        assertVisuallyDifferent(full, low)
+        assertTrue(low.contains("android16.wifi=viewBox=150x113 activeParts=1"))
+        assertTrue(low.contains("android16.signal=viewBox=149x108 active=1"))
+        assertTrue(low.contains("level=19 fill=0.190"))
+        assertTrue(low.contains("colorMode=critical-red"))
+    }
+
+    @Test
     fun `visual families stay distinct`() {
         val ios26 = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_26)
         val ios27 = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27)
