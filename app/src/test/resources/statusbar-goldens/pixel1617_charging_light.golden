@@ -3,7 +3,7 @@ canvas=240x36 background=light
 style=PIXEL_16_17 display=Pixel 16/17 signature=pixel1617-data-rich
 clock=9:41 weight=SEMIBOLD sizeSp=14.20
 network=5G mode=PROMINENT weight=SEMIBOLD sizeSp=10.20
-android16.signal=viewBox=149x108 active=4 bars=[0.000,0.250,0.161,0.398,r0.500;0.282,0.157,0.161,0.491,r0.500;0.564,0.074,0.161,0.574,r0.500;0.846,0.019,0.148,0.630,r0.500] lower=[0.007,0.759,0.148,0.241,r0.500;0.289,0.759,0.148,0.241,r0.500;0.570,0.759,0.148,0.241,r0.500;0.846,0.759,0.148,0.241,r0.500] baseline=aligned
-android16.wifi=viewBox=150x113 activeParts=3 outer=0.000,0.000,1.000,0.407,stroke=0.221 middle=0.190,0.442,0.620,0.292,stroke=0.221 dot=0.397,0.735,0.207,0.274,shape=circle
-android16.battery=viewBox=243x121 level=67 fill=0.670 charging=true body=0.000,0.000,0.909,1.000,r0.250 terminal=0.951,0.298,0.049,0.405,r0.500 mode=android16-rounded-rect colorMode=active-fill bodyColor=#99A1AA activeColor=#F0F4F5 inactiveColor=#7F8D97 textColor=#1C1D21 criticalColor=#F50003
+pixel1617.signal=viewBox=132x108 active=4 language=pixel-capsule-bars-v2 bars=[0.000,0.535,0.152,0.385,r0.500;0.283,0.430,0.152,0.490,r0.500;0.566,0.325,0.152,0.595,r0.500;0.848,0.225,0.144,0.695,r0.500] lower=[] baseline=single optically-centered
+pixel1617.wifi=viewBox=144x112 activeParts=3 language=pixel-bold-arcs-v2 outer=0.030,0.040,0.940,0.392,stroke=0.196 middle=0.235,0.445,0.530,0.286,stroke=0.188 dot=0.408,0.742,0.184,0.237,shape=circle
+pixel1617.battery=viewBox=224x112 level=67 fill=0.670 charging=true body=0.000,0.040,0.897,0.920,r0.240 terminal=0.942,0.330,0.049,0.340,r0.500 mode=pixel-rounded-rect-v2 colorMode=charging-green bodyColor=#99A1AA activeColor=#F0F4F5 inactiveColor=#7F8D97 textColor=#1C1D21 criticalColor=#F50003
 spacingDp=2.40 edgeInsetDp=7.00
