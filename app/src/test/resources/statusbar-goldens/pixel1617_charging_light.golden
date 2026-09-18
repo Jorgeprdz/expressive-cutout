@@ -1,4 +1,4 @@
-scene=status-bar-golden-v1
+scene=status-bar-golden-v2
 canvas=240x36 background=light
 style=PIXEL_16_17 display=Pixel 16/17 signature=pixel1617-data-rich
 clock=9:41 weight=SEMIBOLD sizeSp=14.20
