@@ -136,7 +136,7 @@ import kotlin.math.roundToInt
  * smooth. It relies on a semi-private API and degrades gracefully (window stays fully touchable)
  * where that isn't available.
  */
-class IslandOverlayController(
+internal class IslandOverlayController(
     private val context: Context,
     private val systemBarAppearance: kotlinx.coroutines.flow.StateFlow<StatusBarAppearanceState?>,
 ) {
