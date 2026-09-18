@@ -85,13 +85,13 @@ internal object PixelStatusBarGeometry {
     fun wifiGlyph(side: Float): PixelWifiGlyphGeometry {
         val safeSide = side.coerceAtLeast(0.1f)
         val centerX = safeSide * 0.50f
-        val centerY = safeSide * 0.63f
+        val centerY = safeSide * 0.545f
         return PixelWifiGlyphGeometry(
             side = safeSide,
             centerX = centerX,
             centerY = centerY,
-            radii = listOf(0.20f, 0.36f, 0.52f).map { safeSide * it },
-            strokeWidth = safeSide * 0.085f,
+            radii = listOf(0.19f, 0.30f, 0.41f).map { safeSide * it },
+            strokeWidth = safeSide * 0.082f,
             startAngle = 220f,
             sweepAngle = 100f,
             dotX = centerX,
