@@ -278,6 +278,20 @@ internal fun PixelWifiGlyph(
             sizeDp = glyphProfile.sizeDp,
             scale = safeScale,
             modifier = modifier,
+            level = level,
+            inactiveAlpha = glyphProfile.inactiveAlpha,
+        )
+        return
+    }
+    if (visualMode == StatusBarWifiVisualMode.PIXEL_COMPACT_ARCS) {
+        Android16MeasuredWifiGlyph(
+            geometry = Android16StatusBarIconGeometry.pixel1617.wifi,
+            tint = tint,
+            sizeDp = glyphProfile.sizeDp,
+            scale = safeScale,
+            modifier = modifier,
+            level = level,
+            inactiveAlpha = glyphProfile.inactiveAlpha,
         )
         return
     }
@@ -357,6 +371,21 @@ internal fun PixelMobileGlyph(
             heightDp = glyphHeightDp,
             scale = safeScale,
             modifier = modifier,
+            level = level,
+            inactiveAlpha = profile?.inactiveAlpha ?: PixelStatusBarGeometry.INACTIVE_ALPHA,
+        )
+        return
+    }
+    if (visualMode == StatusBarSignalVisualMode.DOT_MATRIX) {
+        Android16MeasuredSignalGlyph(
+            geometry = Android16StatusBarIconGeometry.pixel1617.signal,
+            tint = tint,
+            widthDp = glyphWidthDp,
+            heightDp = glyphHeightDp,
+            scale = safeScale,
+            modifier = modifier,
+            level = level,
+            inactiveAlpha = profile?.inactiveAlpha ?: 0.34f,
         )
         return
     }
@@ -366,29 +395,6 @@ internal fun PixelMobileGlyph(
             .width((glyphWidthDp * safeScale).dp)
             .height((glyphHeightDp * safeScale).dp),
     ) {
-        if (visualMode == StatusBarSignalVisualMode.DOT_MATRIX) {
-            val active = level?.coerceIn(0, 4) ?: 0
-            val dot = min(size.width / 8.5f, size.height / 7.2f).coerceAtLeast(1f)
-            val gapX = dot * 0.68f
-            val gapY = dot * 0.55f
-            val startX = size.width * 0.10f
-            val bottom = size.height * 0.88f
-            repeat(4) { column ->
-                val dots = (column + 2).coerceAtMost(4)
-                val x = startX + column * (dot + gapX)
-                repeat(dots) { row ->
-                    val y = bottom - row * (dot + gapY) - dot
-                    drawRoundRect(
-                        color = tint.copy(alpha = if (column < active) 1f else 0.20f),
-                        topLeft = Offset(x, y),
-                        size = Size(dot, dot),
-                        cornerRadius = CornerRadius(dot / 2f),
-                    )
-                }
-            }
-            return@Canvas
-        }
-
         val strengths = PixelStatusBarGeometry.mobileStrengths(level)
         val geometry = if (profile != null) {
             PixelStatusBarGeometry.mobileGlyph(size.width, size.height, profile)
@@ -439,6 +445,21 @@ internal fun PixelBatteryGlyph(
     if (measured != null) {
         IosMeasuredBatteryGlyph(
             geometry = measured,
+            tint = tint,
+            widthDp = glyphProfile.widthDp,
+            heightDp = glyphProfile.heightDp,
+            scale = safeScale,
+            modifier = modifier,
+            level = level,
+            charging = charging,
+        )
+        return
+    }
+    if (visualMode == StatusBarBatteryVisualMode.NUMERIC_CAPSULE_PROMINENT) {
+        Android16MeasuredBatteryGlyph(
+            geometry = Android16StatusBarIconGeometry.pixel1617.battery,
+            level = level,
+            charging = charging,
             tint = tint,
             widthDp = glyphProfile.widthDp,
             heightDp = glyphProfile.heightDp,
