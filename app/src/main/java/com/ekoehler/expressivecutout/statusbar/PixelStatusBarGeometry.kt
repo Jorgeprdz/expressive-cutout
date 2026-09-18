@@ -122,8 +122,8 @@ internal object PixelStatusBarGeometry {
             intrinsicWidthDp = 15f,
             leftFraction = 0.14f,
             bottomFraction = 0.88f,
-            availableWidthFraction = 0.66f,
-            gapFraction = 0.12121212f,
+            availableWidthFraction = 0.72f,
+            gapFraction = 0.11111111f,
             heightFractions = listOf(0.24f, 0.42f, 0.60f, 0.78f),
             cornerFraction = 0.50f,
         )
