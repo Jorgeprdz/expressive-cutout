@@ -24,14 +24,14 @@ class PixelStatusBarGeometryTest {
     }
 
     @Test
-    fun `wifi geometry keeps the owned pixel profile proportions`() {
+    fun `wifi geometry keeps owned pixel language while staying contained`() {
         val side = 100f
         val g = PixelStatusBarGeometry.wifiGlyph(side)
 
         assertEquals(50f, g.centerX, 0.001f)
-        assertEquals(63f, g.centerY, 0.001f)
-        assertEquals(listOf(20f, 36f, 52f), g.radii)
-        assertEquals(8.5f, g.strokeWidth, 0.001f)
+        assertEquals(54.5f, g.centerY, 0.001f)
+        assertEquals(listOf(19f, 30f, 41f), g.radii)
+        assertEquals(8.2f, g.strokeWidth, 0.001f)
         assertEquals(220f, g.startAngle, 0.001f)
         assertEquals(100f, g.sweepAngle, 0.001f)
         assertEquals(g.centerX, g.dotX, 0.001f)
