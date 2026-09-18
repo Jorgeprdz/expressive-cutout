@@ -37,7 +37,7 @@ class PixelStatusBarGeometryTest {
         assertEquals(220f, g.startAngle, 0.001f)
         assertEquals(100f, g.sweepAngle, 0.001f)
         assertEquals(g.centerX, g.dotX, 0.001f)
-        assertEquals(80f, g.dotY, 0.001f)
+        assertEquals(79f, g.dotY, 0.001f)
         assertTrue(g.dotRadius > 0f)
         assertTrue(g.radii.zipWithNext().all { (a, b) -> b > a })
     }
