@@ -18,6 +18,8 @@ internal object StatusBarGoldenScene {
         style: CustomStatusBarStyle,
         batteryLevel: Int = 67,
         charging: Boolean = false,
+        wifiLevel: Int? = 4,
+        cellularLevel: Int? = 4,
     ): String {
         val spec = StatusBarStyleRegistry.resolve(style)
         val networkText = if (spec.networkLabelMode == StatusBarNetworkLabelMode.HIDDEN) {
@@ -27,8 +29,13 @@ internal object StatusBarGoldenScene {
         }
         val batteryShape = batteryShape(spec.batteryVisualMode, charging)
         val measuredIos = IosStatusBarIconGeometry.forStyle(style)
+        val measuredAndroid16 = if (style == CustomStatusBarStyle.PIXEL_16_17) {
+            Android16StatusBarIconGeometry.pixel1617
+        } else {
+            null
+        }
         return buildString {
-            appendLine("scene=status-bar-golden-v2")
+            appendLine("scene=status-bar-golden-v3")
             appendLine("canvas=${WIDTH}x$HEIGHT background=light")
             appendLine("style=${spec.id.name} display=${spec.displayName} signature=${spec.visualSignatureKey}")
             appendLine(
@@ -38,20 +45,40 @@ internal object StatusBarGoldenScene {
                 "network=$networkText mode=${spec.networkLabelMode.name} " +
                     "weight=${spec.networkTypeWeight.name} sizeSp=${fmt(spec.networkTypeFontSizeSp)}",
             )
-            if (measuredIos != null) {
-                measuredIos.signatureLines().forEach { appendLine(it) }
-            } else {
-                appendLine(
-                    "signal=${spec.signalVisualMode.name} level=4 active=4 geometry=${signalGeometry(spec)}",
-                )
-                appendLine(
-                    "wifi=${spec.wifiVisualMode.name} level=4 arcs=3 stroke=${wifiStroke(spec.wifiVisualMode)}",
-                )
-                appendLine(
-                    "battery=${spec.batteryVisualMode.name} level=${batteryLevel.coerceIn(0, 100)} " +
-                        "charging=$charging numeric=${spec.batteryVisualMode.usesInternalPercentage} " +
-                        "shape=$batteryShape",
-                )
+            when {
+                measuredIos != null -> {
+                    measuredIos.signatureLines().forEach { appendLine(it) }
+                    appendLine("${measuredIos.label}.signalState=level=${cellularLevel ?: 4} active=${dynamicLevel(cellularLevel, 4)}")
+                    appendLine("${measuredIos.label}.wifiState=level=${wifiLevel ?: 4} activeParts=${wifiActiveParts(wifiLevel)}")
+                    appendLine(
+                        "${measuredIos.label}.batteryState=level=${batteryLevel.coerceIn(0, 100)} " +
+                            "fill=${fmt3(batteryLevel.coerceIn(0, 100) / 100f)} charging=$charging",
+                    )
+                }
+                measuredAndroid16 != null -> {
+                    measuredAndroid16.signatureLines(
+                        batteryLevel = batteryLevel,
+                        charging = charging,
+                        wifiLevel = wifiLevel,
+                        cellularLevel = cellularLevel,
+                    ).forEach { appendLine(it) }
+                }
+                else -> {
+                    appendLine(
+                        "signal=${spec.signalVisualMode.name} level=${cellularLevel ?: 4} " +
+                            "active=${dynamicLevel(cellularLevel, 4)} geometry=${signalGeometry(spec)}",
+                    )
+                    appendLine(
+                        "wifi=${spec.wifiVisualMode.name} level=${wifiLevel ?: 4} " +
+                            "activeParts=${wifiActiveParts(wifiLevel)} stroke=${wifiStroke(spec.wifiVisualMode)}",
+                    )
+                    appendLine(
+                        "battery=${spec.batteryVisualMode.name} level=${batteryLevel.coerceIn(0, 100)} " +
+                            "fill=${fmt3(batteryLevel.coerceIn(0, 100) / 100f)} " +
+                            "charging=$charging numeric=${spec.batteryVisualMode.usesInternalPercentage} " +
+                            "shape=$batteryShape",
+                    )
+                }
             }
             append(
                 "spacingDp=${fmt(spec.spacingDp(4f))} edgeInsetDp=${fmt(spec.edgeInsetDp)}",
@@ -98,4 +125,5 @@ internal object StatusBarGoldenScene {
     }
 
     private fun fmt(value: Float): String = String.format(Locale.US, "%.2f", value)
+    private fun fmt3(value: Float): String = String.format(Locale.US, "%.3f", value)
 }
