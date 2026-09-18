@@ -66,6 +66,7 @@ import com.ekoehler.expressivecutout.data.HorizontalCutoutMode
 import com.ekoehler.expressivecutout.data.SatellitePosition
 import com.ekoehler.expressivecutout.data.CutoutColor
 import com.ekoehler.expressivecutout.data.CustomStatusBarAppearancePreference
+import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
 import com.ekoehler.expressivecutout.data.DynamicRole
 import com.ekoehler.expressivecutout.data.DynamicTilePreferences
 import com.ekoehler.expressivecutout.data.EventPreferences
@@ -200,6 +201,7 @@ internal class IslandOverlayController(
     private val expandedState = MutableStateFlow(false)
     private val customStatusBarRenderState = MutableStateFlow(false)
     private val customStatusBarAppearanceModeState = MutableStateFlow(StatusBarAppearanceMode.AUTO)
+    private val customStatusBarSettingsState = MutableStateFlow(CustomStatusBarSettings.DEFAULT)
     private val customStatusBarLockedState = MutableStateFlow(false)
 
     private val displayHeightPx: Int =
@@ -706,6 +708,7 @@ internal class IslandOverlayController(
                 val customStatusBarVisible by customStatusBarRenderState.collectAsStateWithLifecycle()
                 val customAppearanceMode by customStatusBarAppearanceModeState.collectAsStateWithLifecycle()
                 val customDeviceState by CustomStatusBarDeviceStateStore.state.collectAsStateWithLifecycle()
+                val customStatusBarSettings by customStatusBarSettingsState.collectAsStateWithLifecycle()
                 val currentSystemBarAppearance by systemBarAppearance.collectAsStateWithLifecycle()
                 val isExpandedForStatusBar by expandedState.collectAsStateWithLifecycle()
                 val isNoExpandLandscape = orientation == Configuration.ORIENTATION_LANDSCAPE &&
@@ -774,6 +777,7 @@ internal class IslandOverlayController(
                                 leftForeground = leftResolution.foreground,
                                 rightForeground = rightResolution.foreground,
                                 layout = statusLayout,
+                                settings = customStatusBarSettings,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
@@ -854,21 +858,21 @@ internal class IslandOverlayController(
     /** Holds native suppression before exposing the visual layer, so duplicate bars never linger. */
     private fun observeCustomStatusBar() = scope.launch {
         combine(
-            statusBarPreferences.customStatusBarEnabled,
-            statusBarPreferences.customStatusBarAppearance,
+            statusBarPreferences.customStatusBarSettings,
             ShizukuState.status,
             orientationState,
             customStatusBarLockedState,
-        ) { enabled, appearance, shizuku, orientation, locked ->
-            CustomStatusBarWish(enabled, appearance, shizuku, orientation, locked)
+        ) { settings, shizuku, orientation, locked ->
+            CustomStatusBarWish(settings, shizuku, orientation, locked)
         }.distinctUntilChanged().collect { wish ->
-            customStatusBarAppearanceModeState.value = when (wish.appearance) {
+            customStatusBarSettingsState.value = wish.settings
+            customStatusBarAppearanceModeState.value = when (wish.settings.appearance) {
                 CustomStatusBarAppearancePreference.AUTO -> StatusBarAppearanceMode.AUTO
                 CustomStatusBarAppearancePreference.LIGHT -> StatusBarAppearanceMode.FORCE_LIGHT_FOREGROUND
                 CustomStatusBarAppearancePreference.DARK -> StatusBarAppearanceMode.FORCE_DARK_FOREGROUND
             }
             val decision = CustomStatusBarActivationPolicy.decide(
-                enabled = wish.enabled && !wish.locked,
+                enabled = wish.settings.enabled && !wish.locked,
                 shizukuReady = wish.shizuku == ShizukuStatus.READY,
                 portraitSupported = wish.orientation == Configuration.ORIENTATION_PORTRAIT,
             )
@@ -2989,8 +2993,7 @@ internal class IslandOverlayController(
     )
 
     private data class CustomStatusBarWish(
-        val enabled: Boolean,
-        val appearance: CustomStatusBarAppearancePreference,
+        val settings: CustomStatusBarSettings,
         val shizuku: ShizukuStatus,
         val orientation: Int,
         val locked: Boolean,

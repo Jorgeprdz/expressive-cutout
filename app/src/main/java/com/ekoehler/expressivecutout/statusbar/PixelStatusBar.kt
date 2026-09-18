@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
@@ -16,22 +15,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
+import com.ekoehler.expressivecutout.data.PixelStatusBarScale
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
- * Pixel-style visual layer. It consumes only normalized state and layout; it never queries Android
- * theme, connectivity, battery or Dynamic Island state on its own.
+ * Pixel-style visual layer. It consumes only normalized state/layout/settings and never queries
+ * Android theme, connectivity, battery or Dynamic Island state on its own.
  */
 @Composable
 internal fun PixelStatusBarLayer(
@@ -39,8 +42,11 @@ internal fun PixelStatusBarLayer(
     leftForeground: StatusBarForeground,
     rightForeground: StatusBarForeground,
     layout: StatusBarLayoutResult,
+    settings: CustomStatusBarSettings = CustomStatusBarSettings.DEFAULT,
     modifier: Modifier = Modifier,
 ) {
+    val safe = settings.sanitized()
+    val scales = PixelStatusBarScale.resolve(safe)
     val leftTint by animateColorAsState(
         targetValue = if (leftForeground == StatusBarForeground.LIGHT) Color.White else Color.Black,
         animationSpec = tween(durationMillis = 160),
@@ -55,18 +61,29 @@ internal fun PixelStatusBarLayer(
     val density = LocalDensity.current
     Box(modifier = modifier) {
         layout.leftContentRegion?.let { left ->
+            val clockWidthDp = 76f * scales.clock
+            val clockHeightDp = 24f * scales.clock
+            val placed = StatusBarSafePlacement.placeLeft(
+                region = left,
+                contentWidth = with(density) { clockWidthDp.dp.roundToPx() },
+                contentHeight = with(density) { clockHeightDp.dp.roundToPx() },
+                requestedOffsetX = with(density) { safe.clockOffsetXDp.dp.roundToPx() },
+                requestedOffsetY = with(density) { safe.clockOffsetYDp.dp.roundToPx() },
+                globalOffsetY = with(density) { safe.statusBarOffsetYDp.dp.roundToPx() },
+                edgeInset = with(density) { 8.dp.roundToPx() },
+            )
             Box(
                 modifier = Modifier
-                    .offset { IntOffset(left.left, left.top) }
-                    .width(with(density) { left.width.toDp() })
-                    .height(with(density) { left.height.toDp() })
-                    .padding(start = 8.dp),
+                    .offset { IntOffset(placed.left, placed.top) }
+                    .width(with(density) { placed.width.toDp() })
+                    .height(with(density) { placed.height.toDp() })
+                    .clipToBounds(),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 Text(
                     text = state.timeText,
                     color = leftTint,
-                    fontSize = 14.sp,
+                    fontSize = (14f * scales.clock).sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                 )
@@ -74,39 +91,113 @@ internal fun PixelStatusBarLayer(
         }
 
         layout.rightContentRegion?.let { right ->
+            val percentage = PixelStatusBarPresentation.batteryPercentage(
+                state.battery.level,
+                safe.batteryPercentageMode,
+            )
+            val availableDp = with(density) {
+                (right.width - 16.dp.roundToPx()).coerceAtLeast(0).toDp().value
+            }
+            val networkAvailable = state.cellular.connected && state.cellular.networkType != null
+
+            fun widthDp(includeNetwork: Boolean, includePercentage: Boolean): Float {
+                val widths = buildList {
+                    if (state.cellular.connected) add(15f * scales.systemIcons)
+                    if (includeNetwork && networkAvailable) add(24f * scales.systemIcons)
+                    if (state.wifi.connected) add(15f * scales.systemIcons)
+                    add(22f * scales.battery)
+                    if (includePercentage && percentage != null) add(30f * scales.systemIcons)
+                }
+                val gaps = (widths.size - 1).coerceAtLeast(0)
+                return widths.sum() + gaps * safe.systemIconsSpacingDp
+            }
+
+            val bothFit = widthDp(includeNetwork = networkAvailable, includePercentage = percentage != null) <= availableDp
+            val percentageFitsWithoutNetwork =
+                percentage != null && widthDp(includeNetwork = false, includePercentage = true) <= availableDp
+            val networkFitsWithoutPercentage =
+                networkAvailable && widthDp(includeNetwork = true, includePercentage = false) <= availableDp
+
+            val showNetwork = when {
+                bothFit -> networkAvailable
+                percentageFitsWithoutNetwork -> false
+                else -> networkFitsWithoutPercentage
+            }
+            val showPercentage = when {
+                bothFit -> percentage != null
+                percentageFitsWithoutNetwork -> true
+                else -> false
+            }
+
+            val contentWidthDp = widthDp(showNetwork, showPercentage)
+                .coerceAtMost(availableDp.coerceAtLeast(0f))
+            val contentHeightDp = 26f * maxOf(scales.systemIcons, scales.battery)
+            val placed = StatusBarSafePlacement.placeRight(
+                region = right,
+                contentWidth = with(density) { contentWidthDp.dp.roundToPx() },
+                contentHeight = with(density) { contentHeightDp.dp.roundToPx() },
+                requestedOffsetX = with(density) { safe.systemIconsOffsetXDp.dp.roundToPx() },
+                requestedOffsetY = with(density) { safe.systemIconsOffsetYDp.dp.roundToPx() },
+                globalOffsetY = with(density) { safe.statusBarOffsetYDp.dp.roundToPx() },
+                edgeInset = with(density) { 8.dp.roundToPx() },
+            )
+
             Row(
                 modifier = Modifier
-                    .offset { IntOffset(right.left, right.top) }
-                    .width(with(density) { right.width.toDp() })
-                    .height(with(density) { right.height.toDp() })
-                    .padding(end = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+                    .offset { IntOffset(placed.left, placed.top) }
+                    .width(with(density) { placed.width.toDp() })
+                    .height(with(density) { placed.height.toDp() })
+                    .clipToBounds(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    safe.systemIconsSpacingDp.dp,
+                    Alignment.End,
+                ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (state.cellular.connected) {
-                    state.cellular.networkType?.let {
-                        Text(
-                            text = when (it) {
-                                StatusBarNetworkType.FOUR_G -> "4G"
-                                StatusBarNetworkType.LTE -> "LTE"
-                                StatusBarNetworkType.FIVE_G -> "5G"
-                            },
-                            color = rightTint,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                        )
+                    if (showNetwork) {
+                        state.cellular.networkType?.let {
+                            Text(
+                                text = when (it) {
+                                    StatusBarNetworkType.FOUR_G -> "4G"
+                                    StatusBarNetworkType.LTE -> "LTE"
+                                    StatusBarNetworkType.FIVE_G -> "5G"
+                                },
+                                color = rightTint,
+                                fontSize = (10f * scales.systemIcons).sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                            )
+                        }
                     }
-                    PixelMobileGlyph(level = state.cellular.level, tint = rightTint)
+                    PixelMobileGlyph(
+                        level = state.cellular.level,
+                        tint = rightTint,
+                        scale = scales.systemIcons,
+                    )
                 }
                 if (state.wifi.connected) {
-                    PixelWifiGlyph(level = state.wifi.level, tint = rightTint)
+                    PixelWifiGlyph(
+                        level = state.wifi.level,
+                        tint = rightTint,
+                        scale = scales.systemIcons,
+                    )
                 }
                 PixelBatteryGlyph(
                     level = state.battery.level,
                     charging = state.battery.charging,
                     tint = rightTint,
+                    scale = scales.battery,
                 )
+                if (showPercentage && percentage != null) {
+                    Text(
+                        text = percentage,
+                        color = rightTint,
+                        fontSize = (9.5f * scales.systemIcons).sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
@@ -116,14 +207,16 @@ internal fun PixelStatusBarLayer(
 internal fun PixelWifiGlyph(
     level: Int?,
     tint: Color,
+    scale: Float = 1f,
     modifier: Modifier = Modifier,
 ) {
+    val safeScale = scale.coerceAtLeast(0.1f)
     val strengths = PixelStatusBarGeometry.wifiStrengths(level)
-    Canvas(modifier = modifier.size(15.dp)) {
+    Canvas(modifier = modifier.size((15f * safeScale).dp)) {
         val side = min(size.width, size.height)
         val cx = size.width / 2f
         val cy = size.height * 0.63f
-        val stroke = maxOf(1.15.dp.toPx(), side * 0.085f)
+        val stroke = maxOf((1.15f * safeScale).dp.toPx(), side * 0.085f)
         val radii = listOf(0.20f, 0.36f, 0.52f)
         radii.forEachIndexed { index, fraction ->
             val radius = side * fraction
@@ -149,10 +242,12 @@ internal fun PixelWifiGlyph(
 internal fun PixelMobileGlyph(
     level: Int?,
     tint: Color,
+    scale: Float = 1f,
     modifier: Modifier = Modifier,
 ) {
+    val safeScale = scale.coerceAtLeast(0.1f)
     val strengths = PixelStatusBarGeometry.mobileStrengths(level)
-    Canvas(modifier = modifier.size(15.dp)) {
+    Canvas(modifier = modifier.size((15f * safeScale).dp)) {
         val w = size.width
         val h = size.height
         val left = w * 0.13f
@@ -168,7 +263,7 @@ internal fun PixelMobileGlyph(
                 color = tint.copy(alpha = if (strengths[index] > 0f) 1f else 0.22f),
                 topLeft = Offset(x, bottom - barH),
                 size = Size(barW, barH),
-                cornerRadius = CornerRadius(min(barW * 0.36f, 1.8.dp.toPx())),
+                cornerRadius = CornerRadius(min(barW * 0.36f, (1.8f * safeScale).dp.toPx())),
             )
         }
     }
@@ -179,14 +274,20 @@ internal fun PixelBatteryGlyph(
     level: Int?,
     charging: Boolean,
     tint: Color,
+    scale: Float = 1f,
     modifier: Modifier = Modifier,
 ) {
+    val safeScale = scale.coerceAtLeast(0.1f)
     val fraction = PixelStatusBarGeometry.batteryFraction(level)
-    Canvas(modifier = modifier.width(22.dp).height(12.dp)) {
-        val terminalWidth = 1.5.dp.toPx()
-        val bodyWidth = size.width - terminalWidth - 1.dp.toPx()
-        val stroke = 1.2.dp.toPx()
-        val radius = 2.2.dp.toPx()
+    Canvas(
+        modifier = modifier
+            .width((22f * safeScale).dp)
+            .height((12f * safeScale).dp),
+    ) {
+        val terminalWidth = (1.5f * safeScale).dp.toPx()
+        val bodyWidth = size.width - terminalWidth - (1f * safeScale).dp.toPx()
+        val stroke = (1.2f * safeScale).dp.toPx()
+        val radius = (2.2f * safeScale).dp.toPx()
 
         drawRoundRect(
             color = tint,
@@ -197,19 +298,19 @@ internal fun PixelBatteryGlyph(
         )
         drawRoundRect(
             color = tint.copy(alpha = 0.8f),
-            topLeft = Offset(bodyWidth + 0.7.dp.toPx(), size.height * 0.32f),
+            topLeft = Offset(bodyWidth + (0.7f * safeScale).dp.toPx(), size.height * 0.32f),
             size = Size(terminalWidth, size.height * 0.36f),
             cornerRadius = CornerRadius(terminalWidth / 2f),
         )
 
-        val inset = 2.2.dp.toPx()
+        val inset = (2.2f * safeScale).dp.toPx()
         val fillWidth = (bodyWidth - inset * 2f).coerceAtLeast(0f) * fraction
         if (fillWidth > 0f) {
             drawRoundRect(
                 color = tint,
                 topLeft = Offset(inset, inset),
                 size = Size(fillWidth, (size.height - inset * 2f).coerceAtLeast(0f)),
-                cornerRadius = CornerRadius(1.2.dp.toPx()),
+                cornerRadius = CornerRadius((1.2f * safeScale).dp.toPx()),
             )
         }
 
