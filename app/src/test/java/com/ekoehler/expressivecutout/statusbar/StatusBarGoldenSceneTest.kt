@@ -68,9 +68,10 @@ class StatusBarGoldenSceneTest {
         val ios27Full = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
         val ios27Low = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
 
-        assertVisuallyDifferent(ios26Full, ios26Low)
-        assertVisuallyDifferent(ios27Full, ios27Low)
+        assertNotEquals(ios26Full, ios26Low)
+        assertNotEquals(ios27Full, ios27Low)
         assertTrue(ios26Low.contains("ios26.batteryState=level=19 fill=0.190"))
+        assertTrue(ios26Low.contains("ios26.wifiState=level=1 activeParts=1"))
         assertTrue(ios27Low.contains("ios27.signalState=level=1 active=1"))
     }
 
@@ -79,7 +80,7 @@ class StatusBarGoldenSceneTest {
         val full = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
         val low = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
 
-        assertVisuallyDifferent(full, low)
+        assertNotEquals(full, low)
         assertTrue(low.contains("android16.wifi=viewBox=150x113 activeParts=1"))
         assertTrue(low.contains("android16.signal=viewBox=149x108 active=1"))
         assertTrue(low.contains("level=19 fill=0.190"))
