@@ -26,8 +26,9 @@ internal object StatusBarGoldenScene {
             PixelStatusBarPresentation.networkTypeLabel(StatusBarNetworkType.FIVE_G)
         }
         val batteryShape = batteryShape(spec.batteryVisualMode, charging)
+        val measuredIos = IosStatusBarIconGeometry.forStyle(style)
         return buildString {
-            appendLine("scene=status-bar-golden-v1")
+            appendLine("scene=status-bar-golden-v2")
             appendLine("canvas=${WIDTH}x$HEIGHT background=light")
             appendLine("style=${spec.id.name} display=${spec.displayName} signature=${spec.visualSignatureKey}")
             appendLine(
@@ -37,17 +38,21 @@ internal object StatusBarGoldenScene {
                 "network=$networkText mode=${spec.networkLabelMode.name} " +
                     "weight=${spec.networkTypeWeight.name} sizeSp=${fmt(spec.networkTypeFontSizeSp)}",
             )
-            appendLine(
-                "signal=${spec.signalVisualMode.name} level=4 active=4 geometry=${signalGeometry(spec)}",
-            )
-            appendLine(
-                "wifi=${spec.wifiVisualMode.name} level=4 arcs=3 stroke=${wifiStroke(spec.wifiVisualMode)}",
-            )
-            appendLine(
-                "battery=${spec.batteryVisualMode.name} level=${batteryLevel.coerceIn(0, 100)} " +
-                    "charging=$charging numeric=${spec.batteryVisualMode.usesInternalPercentage} " +
-                    "shape=$batteryShape",
-            )
+            if (measuredIos != null) {
+                measuredIos.signatureLines().forEach { appendLine(it) }
+            } else {
+                appendLine(
+                    "signal=${spec.signalVisualMode.name} level=4 active=4 geometry=${signalGeometry(spec)}",
+                )
+                appendLine(
+                    "wifi=${spec.wifiVisualMode.name} level=4 arcs=3 stroke=${wifiStroke(spec.wifiVisualMode)}",
+                )
+                appendLine(
+                    "battery=${spec.batteryVisualMode.name} level=${batteryLevel.coerceIn(0, 100)} " +
+                        "charging=$charging numeric=${spec.batteryVisualMode.usesInternalPercentage} " +
+                        "shape=$batteryShape",
+                )
+            }
             append(
                 "spacingDp=${fmt(spec.spacingDp(4f))} edgeInsetDp=${fmt(spec.edgeInsetDp)}",
             )
