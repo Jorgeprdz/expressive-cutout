@@ -240,6 +240,7 @@ internal fun SettingsToggleNavCard(
     onCheckedChange: (Boolean) -> Unit,
     onClick: () -> Unit,
     leading: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -249,7 +250,7 @@ internal fun SettingsToggleNavCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(enabled = enabled, onClick = onClick)
                 .padding(vertical = 16.dp)
                 .padding(start = 16.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -285,7 +286,7 @@ internal fun SettingsToggleNavCard(
                     .background(MaterialTheme.colorScheme.outlineVariant),
             )
             Spacer(Modifier.width(12.dp))
-            Switch(checked = checked, onCheckedChange = onCheckedChange)
+            Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
         }
     }
 }

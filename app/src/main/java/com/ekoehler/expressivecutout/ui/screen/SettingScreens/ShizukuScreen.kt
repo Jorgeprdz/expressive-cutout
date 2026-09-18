@@ -131,6 +131,7 @@ internal fun ShizukuScreen(
             checked = ready && customStatusBarEnabled,
             onCheckedChange = viewModel::setCustomStatusBarEnabled,
             onClick = onOpenCustomStatusBar,
+            enabled = ready,
         )
 
         Text(
