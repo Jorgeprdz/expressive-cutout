@@ -640,6 +640,8 @@
     <string name="custom_status_bar_clock_x_desc">Move the clock inside its safe region.</string>
     <string name="custom_status_bar_clock_y_desc">Move the clock vertically inside the status bar.</string>
     <string name="custom_status_bar_system_scale_desc">Scale cellular, Wi-Fi and network text together.</string>
+    <string name="custom_status_bar_wifi_scale">Wi-Fi size</string>
+    <string name="custom_status_bar_wifi_scale_desc">Fine-tune Wi-Fi size independently while keeping the group scale.</string>
     <string name="custom_status_bar_spacing">Spacing</string>
     <string name="custom_status_bar_spacing_desc">Space between the right-side status items.</string>
     <string name="custom_status_bar_system_x_desc">Move the right-side group inside its safe region.</string>

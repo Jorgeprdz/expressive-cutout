@@ -64,6 +64,8 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
                 clockOffsetYDp = prefs[CUSTOM_STATUS_BAR_CLOCK_OFFSET_Y] ?: 0f,
                 systemIconsScale = prefs[CUSTOM_STATUS_BAR_SYSTEM_SCALE]
                     ?: CustomStatusBarSettings.DEFAULT_COMPONENT_SCALE,
+                wifiScale = prefs[CUSTOM_STATUS_BAR_WIFI_SCALE]
+                    ?: CustomStatusBarSettings.DEFAULT_COMPONENT_SCALE,
                 systemIconsSpacingDp = prefs[CUSTOM_STATUS_BAR_SYSTEM_SPACING]
                     ?: CustomStatusBarSettings.DEFAULT_SPACING_DP,
                 systemIconsOffsetXDp = prefs[CUSTOM_STATUS_BAR_SYSTEM_OFFSET_X] ?: 0f,
@@ -119,6 +121,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             prefs[CUSTOM_STATUS_BAR_CLOCK_OFFSET_X] = safe.clockOffsetXDp
             prefs[CUSTOM_STATUS_BAR_CLOCK_OFFSET_Y] = safe.clockOffsetYDp
             prefs[CUSTOM_STATUS_BAR_SYSTEM_SCALE] = safe.systemIconsScale
+            prefs[CUSTOM_STATUS_BAR_WIFI_SCALE] = safe.wifiScale
             prefs[CUSTOM_STATUS_BAR_SYSTEM_SPACING] = safe.systemIconsSpacingDp
             prefs[CUSTOM_STATUS_BAR_SYSTEM_OFFSET_X] = safe.systemIconsOffsetXDp
             prefs[CUSTOM_STATUS_BAR_SYSTEM_OFFSET_Y] = safe.systemIconsOffsetYDp
@@ -142,6 +145,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         val CUSTOM_STATUS_BAR_CLOCK_OFFSET_X = floatPreferencesKey("custom_status_bar_clock_offset_x")
         val CUSTOM_STATUS_BAR_CLOCK_OFFSET_Y = floatPreferencesKey("custom_status_bar_clock_offset_y")
         val CUSTOM_STATUS_BAR_SYSTEM_SCALE = floatPreferencesKey("custom_status_bar_system_scale")
+        val CUSTOM_STATUS_BAR_WIFI_SCALE = floatPreferencesKey("custom_status_bar_wifi_scale")
         val CUSTOM_STATUS_BAR_SYSTEM_SPACING = floatPreferencesKey("custom_status_bar_system_spacing")
         val CUSTOM_STATUS_BAR_SYSTEM_OFFSET_X = floatPreferencesKey("custom_status_bar_system_offset_x")
         val CUSTOM_STATUS_BAR_SYSTEM_OFFSET_Y = floatPreferencesKey("custom_status_bar_system_offset_y")
@@ -176,6 +180,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             put("customStatusBarClockOffsetX", customSettings.clockOffsetXDp)
             put("customStatusBarClockOffsetY", customSettings.clockOffsetYDp)
             put("customStatusBarSystemScale", customSettings.systemIconsScale)
+            put("customStatusBarWifiScale", customSettings.wifiScale)
             put("customStatusBarSystemSpacing", customSettings.systemIconsSpacingDp)
             put("customStatusBarSystemOffsetX", customSettings.systemIconsOffsetXDp)
             put("customStatusBarSystemOffsetY", customSettings.systemIconsOffsetYDp)
@@ -215,6 +220,7 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             obj.has("customStatusBarClockOffsetX") ||
             obj.has("customStatusBarClockOffsetY") ||
             obj.has("customStatusBarSystemScale") ||
+            obj.has("customStatusBarWifiScale") ||
             obj.has("customStatusBarSystemSpacing") ||
             obj.has("customStatusBarSystemOffsetX") ||
             obj.has("customStatusBarSystemOffsetY") ||
@@ -252,6 +258,9 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
             }
             if (obj.has("customStatusBarSystemScale")) {
                 settings = settings.copy(systemIconsScale = obj.optDouble("customStatusBarSystemScale").toFloat())
+            }
+            if (obj.has("customStatusBarWifiScale")) {
+                settings = settings.copy(wifiScale = obj.optDouble("customStatusBarWifiScale").toFloat())
             }
             if (obj.has("customStatusBarSystemSpacing")) {
                 settings = settings.copy(systemIconsSpacingDp = obj.optDouble("customStatusBarSystemSpacing").toFloat())

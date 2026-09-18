@@ -99,6 +99,7 @@ internal fun PixelStatusBarLayer(
             }
             val networkAvailable = state.cellular.connected && state.cellular.networkType != null
             val optical = PixelStatusBarOpticalMetrics.resolve(scales.systemIcons)
+            val wifiOptical = PixelStatusBarOpticalMetrics.resolve(scales.wifi)
             val batteryOptical = PixelStatusBarOpticalMetrics.resolve(scales.battery)
 
             fun widthDp(includeNetwork: Boolean, includePercentage: Boolean): Float {
@@ -117,7 +118,7 @@ internal fun PixelStatusBarLayer(
                         }
                     }
                     if (state.wifi.connected) {
-                        add(PixelStatusBarGeometry.WIFI_SIZE_DP * scales.systemIcons)
+                        add(PixelStatusBarGeometry.WIFI_SIZE_DP * scales.wifi)
                     }
                     add(PixelStatusBarGeometry.BATTERY_WIDTH_DP * scales.battery)
                     if (includePercentage && percentage != null) {
@@ -153,7 +154,8 @@ internal fun PixelStatusBarLayer(
             val contentWidthDp = widthDp(showNetwork, showPercentage)
                 .coerceAtMost(availableDp.coerceAtLeast(0f))
             val contentHeightDp =
-                PixelStatusBarGeometry.RIGHT_GROUP_HEIGHT_DP * maxOf(scales.systemIcons, scales.battery)
+                PixelStatusBarGeometry.RIGHT_GROUP_HEIGHT_DP *
+                    maxOf(scales.systemIcons, scales.wifi, scales.battery)
             val placed = StatusBarSafePlacement.placeRight(
                 region = right,
                 contentWidth = with(density) { contentWidthDp.dp.roundToPx() },
@@ -205,8 +207,8 @@ internal fun PixelStatusBarLayer(
                     PixelWifiGlyph(
                         level = state.wifi.level,
                         tint = rightTint,
-                        scale = scales.systemIcons,
-                        modifier = Modifier.offset(y = optical.wifiYDp.dp),
+                        scale = scales.wifi,
+                        modifier = Modifier.offset(y = wifiOptical.wifiYDp.dp),
                     )
                 }
                 PixelBatteryGlyph(

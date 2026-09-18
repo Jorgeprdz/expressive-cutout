@@ -63,6 +63,7 @@ internal fun CustomStatusBarScreen(
     var clockX by remember(settings.clockOffsetXDp) { mutableStateOf(settings.clockOffsetXDp) }
     var clockY by remember(settings.clockOffsetYDp) { mutableStateOf(settings.clockOffsetYDp) }
     var systemScale by remember(settings.systemIconsScale) { mutableStateOf(settings.systemIconsScale) }
+    var wifiScale by remember(settings.wifiScale) { mutableStateOf(settings.wifiScale) }
     var systemSpacing by remember(settings.systemIconsSpacingDp) { mutableStateOf(settings.systemIconsSpacingDp) }
     var systemX by remember(settings.systemIconsOffsetXDp) { mutableStateOf(settings.systemIconsOffsetXDp) }
     var systemY by remember(settings.systemIconsOffsetYDp) { mutableStateOf(settings.systemIconsOffsetYDp) }
@@ -83,6 +84,7 @@ internal fun CustomStatusBarScreen(
                 clockOffsetXDp = clockX,
                 clockOffsetYDp = clockY,
                 systemIconsScale = systemScale,
+                wifiScale = wifiScale,
                 systemIconsSpacingDp = systemSpacing,
                 systemIconsOffsetXDp = systemX,
                 systemIconsOffsetYDp = systemY,
@@ -269,6 +271,17 @@ internal fun CustomStatusBarScreen(
         )
         SettingsSliderCard(
             RoundedCornerShape(24.dp),
+            stringResource(R.string.custom_status_bar_wifi_scale),
+            stringResource(R.string.custom_status_bar_wifi_scale_desc),
+            "${(wifiScale * 100).roundToInt()}%",
+            wifiScale,
+            CustomStatusBarSettings.MIN_COMPONENT_SCALE..CustomStatusBarSettings.MAX_COMPONENT_SCALE,
+            0.05f,
+            { wifiScale = it },
+            { viewModel.setCustomStatusBarSettings(settings.copy(wifiScale = wifiScale)) },
+        )
+        SettingsSliderCard(
+            RoundedCornerShape(24.dp),
             stringResource(R.string.custom_status_bar_spacing),
             stringResource(R.string.custom_status_bar_spacing_desc),
             "${systemSpacing.roundToInt()} dp",
@@ -367,6 +380,7 @@ internal fun CustomStatusBarScreen(
                 clockX = d.clockOffsetXDp
                 clockY = d.clockOffsetYDp
                 systemScale = d.systemIconsScale
+                wifiScale = d.wifiScale
                 systemSpacing = d.systemIconsSpacingDp
                 systemX = d.systemIconsOffsetXDp
                 systemY = d.systemIconsOffsetYDp

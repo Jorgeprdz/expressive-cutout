@@ -65,6 +65,15 @@ internal object CustomStatusBarDeviceReducer {
         ),
     )
 
+    fun withCellularSignal(
+        state: CustomStatusBarDeviceState,
+        level: Int?,
+    ): CustomStatusBarDeviceState = state.copy(
+        cellular = state.cellular.copy(
+            level = level?.coerceIn(0, 4),
+        ),
+    )
+
     fun withCellular(
         state: CustomStatusBarDeviceState,
         connected: Boolean,
@@ -94,6 +103,9 @@ internal object StatusBarSignalLevelMapper {
         else -> 0
     }
 
+    fun cellularFromPlatformLevel(level: Int?): Int? =
+        level?.coerceIn(0, 4)
+
     fun cellularFromDbm(dbm: Int?): Int? = when {
         dbm == null || dbm == Int.MIN_VALUE -> null
         dbm >= -90 -> 4
@@ -122,6 +134,12 @@ internal object CustomStatusBarDeviceStateStore {
 
     fun updateWifi(connected: Boolean, level: Int?) {
         _state.update { CustomStatusBarDeviceReducer.withWifi(it, connected, level) }
+    }
+
+    fun updateCellularSignal(level: Int?) {
+        _state.update {
+            CustomStatusBarDeviceReducer.withCellularSignal(it, level)
+        }
     }
 
     fun updateCellular(

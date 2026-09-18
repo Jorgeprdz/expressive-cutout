@@ -40,6 +40,7 @@ data class CustomStatusBarSettings(
     val clockOffsetXDp: Float = 0f,
     val clockOffsetYDp: Float = 0f,
     val systemIconsScale: Float = DEFAULT_COMPONENT_SCALE,
+    val wifiScale: Float = DEFAULT_COMPONENT_SCALE,
     val systemIconsSpacingDp: Float = DEFAULT_SPACING_DP,
     val systemIconsOffsetXDp: Float = 0f,
     val systemIconsOffsetYDp: Float = 0f,
@@ -54,6 +55,7 @@ data class CustomStatusBarSettings(
         clockOffsetXDp = clockOffsetXDp.coerceIn(-MAX_OFFSET_DP, MAX_OFFSET_DP),
         clockOffsetYDp = clockOffsetYDp.coerceIn(-MAX_OFFSET_DP, MAX_OFFSET_DP),
         systemIconsScale = systemIconsScale.coerceIn(MIN_COMPONENT_SCALE, MAX_COMPONENT_SCALE),
+        wifiScale = wifiScale.coerceIn(MIN_COMPONENT_SCALE, MAX_COMPONENT_SCALE),
         systemIconsSpacingDp = systemIconsSpacingDp.coerceIn(MIN_SPACING_DP, MAX_SPACING_DP),
         systemIconsOffsetXDp = systemIconsOffsetXDp.coerceIn(-MAX_OFFSET_DP, MAX_OFFSET_DP),
         systemIconsOffsetYDp = systemIconsOffsetYDp.coerceIn(-MAX_OFFSET_DP, MAX_OFFSET_DP),
@@ -87,6 +89,7 @@ data class CustomStatusBarSettings(
 internal data class EffectivePixelStatusBarScale(
     val clock: Float,
     val systemIcons: Float,
+    val wifi: Float,
     val battery: Float,
 )
 
@@ -96,6 +99,7 @@ internal object PixelStatusBarScale {
         return EffectivePixelStatusBarScale(
             clock = safe.masterScale * safe.clockScale,
             systemIcons = safe.masterScale * safe.systemIconsScale,
+            wifi = safe.masterScale * safe.systemIconsScale * safe.wifiScale,
             battery = safe.masterScale * safe.batteryScale,
         )
     }

@@ -25,6 +25,9 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.telephony.SignalStrength
+import android.telephony.TelephonyCallback
+import android.telephony.TelephonyManager
 import android.text.format.DateFormat
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
@@ -57,6 +60,7 @@ class SystemEventMonitor(
 ) {
 
     private val connectivityManager = context.getSystemService<ConnectivityManager>()
+    private val telephonyManager = context.getSystemService<TelephonyManager>()
     private val audioManager = context.getSystemService<AudioManager>()
 
     @Volatile
@@ -78,6 +82,7 @@ class SystemEventMonitor(
     private var lastRingerMode = -1
 
     private var lockPollingJob: Job? = null
+    private var cellularSignalCallback: TelephonyCallback? = null
 
     private val adbWifiObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
@@ -380,28 +385,72 @@ class SystemEventMonitor(
 
     private val cellularCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
+            val fallbackLevel = connectivityManager
+                ?.getNetworkCapabilities(network)
+                ?.signalStrength
+                ?.let(StatusBarSignalLevelMapper::cellularFromDbm)
             CustomStatusBarDeviceStateStore.updateCellular(
                 connected = true,
-                level = null,
+                level = fallbackLevel,
                 networkType = null,
             )
         }
 
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-            CustomStatusBarDeviceStateStore.updateCellular(
-                connected = true,
-                level = StatusBarSignalLevelMapper.cellularFromDbm(networkCapabilities.signalStrength),
-                networkType = null,
-            )
+            val fallbackLevel =
+                StatusBarSignalLevelMapper.cellularFromDbm(networkCapabilities.signalStrength)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && fallbackLevel != null) {
+                CustomStatusBarDeviceStateStore.updateCellularSignal(fallbackLevel)
+            }
         }
 
         override fun onLost(network: Network) {
-            CustomStatusBarDeviceStateStore.updateCellular(
-                connected = false,
-                level = null,
-                networkType = null,
-            )
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                CustomStatusBarDeviceStateStore.updateCellular(
+                    connected = false,
+                    level = null,
+                    networkType = null,
+                )
+            }
         }
+    }
+
+    private fun registerCellularSignalStrength() {
+        val manager = telephonyManager ?: return
+
+        // Seed from the modem cache first so the status bar does not wait for the next radio event.
+        runCatching { manager.signalStrength }
+            .getOrNull()
+            ?.let { signal ->
+                CustomStatusBarDeviceStateStore.updateCellular(
+                    connected = true,
+                    level = StatusBarSignalLevelMapper.cellularFromPlatformLevel(signal.level),
+                    networkType = null,
+                )
+            }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || cellularSignalCallback != null) return
+
+        val callback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
+            override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
+                CustomStatusBarDeviceStateStore.updateCellular(
+                    connected = true,
+                    level = StatusBarSignalLevelMapper.cellularFromPlatformLevel(signalStrength.level),
+                    networkType = null,
+                )
+            }
+        }
+        runCatching {
+            manager.registerTelephonyCallback(context.mainExecutor, callback)
+            cellularSignalCallback = callback
+        }
+    }
+
+    private fun unregisterCellularSignalStrength() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val callback = cellularSignalCallback ?: return
+        runCatching { telephonyManager?.unregisterTelephonyCallback(callback) }
+        cellularSignalCallback = null
     }
 
     private val vpnCallback = object : ConnectivityManager.NetworkCallback() {
@@ -468,6 +517,7 @@ class SystemEventMonitor(
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
         connectivityManager?.registerNetworkCallback(wifiRequest(), wifiCallback)
         connectivityManager?.registerNetworkCallback(cellularRequest(), cellularCallback)
+        registerCellularSignalStrength()
         connectivityManager?.registerNetworkCallback(vpnRequest(), vpnCallback)
 
         runCatching {
@@ -495,6 +545,7 @@ class SystemEventMonitor(
         audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
         connectivityManager?.unregisterNetworkCallback(wifiCallback)
         connectivityManager?.unregisterNetworkCallback(cellularCallback)
+        unregisterCellularSignalStrength()
         connectivityManager?.unregisterNetworkCallback(vpnCallback)
     }
 
