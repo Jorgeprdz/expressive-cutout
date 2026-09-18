@@ -56,8 +56,11 @@ class CustomStatusBarSettingsTest {
     }
 
     @Test
-    fun `legacy pixel style persists as default renderer`() {
+    fun `legacy persisted style aliases stay safe`() {
         assertEquals(CustomStatusBarStyle.DEFAULT, CustomStatusBarStyle.fromPersisted("PIXEL"))
+        assertEquals(CustomStatusBarStyle.NOTHING_OS_5, CustomStatusBarStyle.fromPersisted("NOTHING_OS"))
+        assertEquals(CustomStatusBarStyle.PIXEL_16_17, CustomStatusBarStyle.fromPersisted("PIXEL_16"))
+        assertEquals(CustomStatusBarStyle.PIXEL_16_17, CustomStatusBarStyle.fromPersisted("PIXEL_17"))
     }
 
     @Test
@@ -81,7 +84,7 @@ class CustomStatusBarSettingsTest {
     fun `pixel defaults restore all visual tuning`() {
         val changed = CustomStatusBarSettings(
             enabled = true,
-            style = CustomStatusBarStyle.NOTHING_OS,
+            style = CustomStatusBarStyle.NOTHING_OS_5,
             appearance = CustomStatusBarAppearancePreference.DARK,
             masterScale = 1.3f,
             clockOffsetXDp = 12f,
