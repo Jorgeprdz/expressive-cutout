@@ -1,8 +1,12 @@
 package com.ekoehler.expressivecutout.statusbar
 
 import com.ekoehler.expressivecutout.data.BatteryPercentageMode
+import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 
 internal object PixelStatusBarPresentation {
+    fun mobileSignalWidthDp(style: PixelMobileBarStyle, scale: Float): Float =
+        PixelStatusBarGeometry.mobileWidthDp(style) * scale.coerceAtLeast(0.1f)
+
     fun batteryPercentage(level: Int?, mode: BatteryPercentageMode): String? {
         if (mode != BatteryPercentageMode.OUTSIDE) return null
         return level?.coerceIn(0, 100)?.let { "${it}%" }

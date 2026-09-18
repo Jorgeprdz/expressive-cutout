@@ -9,6 +9,17 @@ enum class CustomStatusBarStyle {
     }
 }
 
+enum class PixelMobileBarStyle {
+    CLASSIC,
+    COMPACT,
+    TALL;
+
+    companion object {
+        fun fromPersisted(raw: String?): PixelMobileBarStyle =
+            entries.firstOrNull { it.name == raw } ?: CLASSIC
+    }
+}
+
 enum class BatteryPercentageMode {
     OFF,
     INSIDE,
@@ -32,6 +43,7 @@ data class CustomStatusBarSettings(
     val systemIconsSpacingDp: Float = DEFAULT_SPACING_DP,
     val systemIconsOffsetXDp: Float = 0f,
     val systemIconsOffsetYDp: Float = 0f,
+    val mobileBarStyle: PixelMobileBarStyle = PixelMobileBarStyle.CLASSIC,
     val batteryScale: Float = DEFAULT_COMPONENT_SCALE,
     val statusBarOffsetYDp: Float = 0f,
     val batteryPercentageMode: BatteryPercentageMode = BatteryPercentageMode.OFF,

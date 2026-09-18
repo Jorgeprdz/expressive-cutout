@@ -1,5 +1,6 @@
 package com.ekoehler.expressivecutout.statusbar
 
+import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 import kotlin.math.min
 
 internal data class PixelPoint(
@@ -68,6 +69,7 @@ internal data class PixelBatteryGlyphGeometry(
 internal object PixelStatusBarGeometry {
     const val WIFI_SIZE_DP = 15f
     const val MOBILE_SIZE_DP = 15f
+    const val MOBILE_HEIGHT_DP = 15f
     const val BATTERY_WIDTH_DP = 21.5f
     const val BATTERY_HEIGHT_DP = 11.5f
     const val RIGHT_GROUP_HEIGHT_DP = 24f
@@ -105,17 +107,63 @@ internal object PixelStatusBarGeometry {
         return List(4) { index -> if (index < active) 1f else 0f }
     }
 
-    /** Four compact bars on one baseline, with enough top/bottom air to avoid the chart look. */
-    fun mobileGlyph(width: Float, height: Float): PixelMobileGlyphGeometry {
+    private data class MobileProfile(
+        val intrinsicWidthDp: Float,
+        val leftFraction: Float,
+        val bottomFraction: Float,
+        val availableWidthFraction: Float,
+        val gapFraction: Float,
+        val heightFractions: List<Float>,
+        val cornerFraction: Float,
+    )
+
+    private fun mobileProfile(style: PixelMobileBarStyle): MobileProfile = when (style) {
+        PixelMobileBarStyle.CLASSIC -> MobileProfile(
+            intrinsicWidthDp = 15f,
+            leftFraction = 0.10f,
+            bottomFraction = 0.86f,
+            availableWidthFraction = 0.80f,
+            gapFraction = 0.075f,
+            heightFractions = listOf(0.24f, 0.40f, 0.56f, 0.72f),
+            cornerFraction = 0.42f,
+        )
+        PixelMobileBarStyle.COMPACT -> MobileProfile(
+            intrinsicWidthDp = 13.5f,
+            leftFraction = 0.08f,
+            bottomFraction = 0.87f,
+            availableWidthFraction = 0.84f,
+            gapFraction = 0.045f,
+            heightFractions = listOf(0.23f, 0.39f, 0.55f, 0.71f),
+            cornerFraction = 0.44f,
+        )
+        PixelMobileBarStyle.TALL -> MobileProfile(
+            intrinsicWidthDp = 14.5f,
+            leftFraction = 0.14f,
+            bottomFraction = 0.88f,
+            availableWidthFraction = 0.72f,
+            gapFraction = 0.065f,
+            heightFractions = listOf(0.26f, 0.45f, 0.64f, 0.83f),
+            cornerFraction = 0.40f,
+        )
+    }
+
+    fun mobileWidthDp(style: PixelMobileBarStyle): Float = mobileProfile(style).intrinsicWidthDp
+
+    /** Four status-bar bars on one baseline; style changes proportions, never signal semantics. */
+    fun mobileGlyph(
+        width: Float,
+        height: Float,
+        style: PixelMobileBarStyle = PixelMobileBarStyle.CLASSIC,
+    ): PixelMobileGlyphGeometry {
         val safeWidth = width.coerceAtLeast(0.1f)
         val safeHeight = height.coerceAtLeast(0.1f)
-        val left = safeWidth * 0.13f
-        val bottom = safeHeight * 0.86f
-        val availableWidth = safeWidth * 0.74f
-        val gap = availableWidth * 0.055f
+        val profile = mobileProfile(style)
+        val left = safeWidth * profile.leftFraction
+        val bottom = safeHeight * profile.bottomFraction
+        val availableWidth = safeWidth * profile.availableWidthFraction
+        val gap = availableWidth * profile.gapFraction
         val barWidth = ((availableWidth - gap * 3f) / 4f).coerceAtLeast(0f)
-        val heights = listOf(0.20f, 0.36f, 0.52f, 0.68f).map { safeHeight * it }
-        val cornerRadius = min(barWidth * 0.36f, safeHeight * 0.12f)
+        val heights = profile.heightFractions.map { safeHeight * it }
         val bars = heights.mapIndexed { index, barHeight ->
             val x = left + index * (barWidth + gap)
             PixelMobileBarGeometry(
@@ -123,7 +171,7 @@ internal object PixelStatusBarGeometry {
                 top = bottom - barHeight,
                 right = x + barWidth,
                 bottom = bottom,
-                cornerRadius = cornerRadius,
+                cornerRadius = min(barWidth * profile.cornerFraction, barHeight / 2f),
             )
         }
         return PixelMobileGlyphGeometry(
