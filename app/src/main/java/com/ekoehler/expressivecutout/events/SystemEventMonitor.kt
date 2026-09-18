@@ -25,6 +25,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.text.format.DateFormat
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import com.ekoehler.expressivecutout.R
@@ -32,6 +33,8 @@ import com.ekoehler.expressivecutout.core.CutoutSignal
 import com.ekoehler.expressivecutout.core.IslandEventBus
 import com.ekoehler.expressivecutout.core.SystemEventPayload
 import com.ekoehler.expressivecutout.core.SystemEventType
+import com.ekoehler.expressivecutout.statusbar.CustomStatusBarDeviceStateStore
+import com.ekoehler.expressivecutout.statusbar.StatusBarSignalLevelMapper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,6 +43,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Date
 
 /**
  * Listens for device-level events and republishes each as a rich [CutoutSignal.System]
@@ -133,6 +137,13 @@ class SystemEventMonitor(
                 }
                 Intent.ACTION_BATTERY_OKAY -> {
                     isLowBatteryState = false
+                }
+                Intent.ACTION_TIME_TICK,
+                Intent.ACTION_TIME_CHANGED,
+                Intent.ACTION_TIMEZONE_CHANGED,
+                Intent.ACTION_LOCALE_CHANGED,
+                -> {
+                    updateStatusBarClock()
                 }
                 Intent.ACTION_SCREEN_OFF -> {
                     onScreenOff()
@@ -334,6 +345,7 @@ class SystemEventMonitor(
 
     private val wifiCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
+            CustomStatusBarDeviceStateStore.updateWifi(connected = true, level = null)
             val ssid = getWifiSsid(context)
             val subtitle = ssid ?: "Connected"
             emit(
@@ -346,7 +358,15 @@ class SystemEventMonitor(
             )
         }
 
+        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            CustomStatusBarDeviceStateStore.updateWifi(
+                connected = true,
+                level = StatusBarSignalLevelMapper.wifiFromDbm(networkCapabilities.signalStrength),
+            )
+        }
+
         override fun onLost(network: Network) {
+            CustomStatusBarDeviceStateStore.updateWifi(connected = false, level = null)
             emit(
                 SystemEventPayload(
                     type = SystemEventType.WIFI_DISCONNECTED,
@@ -354,6 +374,32 @@ class SystemEventMonitor(
                     subtitle = "Disconnected",
                     actionIntentAction = Settings.ACTION_WIFI_SETTINGS,
                 ),
+            )
+        }
+    }
+
+    private val cellularCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            CustomStatusBarDeviceStateStore.updateCellular(
+                connected = true,
+                level = null,
+                networkType = null,
+            )
+        }
+
+        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            CustomStatusBarDeviceStateStore.updateCellular(
+                connected = true,
+                level = StatusBarSignalLevelMapper.cellularFromDbm(networkCapabilities.signalStrength),
+                networkType = null,
+            )
+        }
+
+        override fun onLost(network: Network) {
+            CustomStatusBarDeviceStateStore.updateCellular(
+                connected = false,
+                level = null,
+                networkType = null,
             )
         }
     }
@@ -405,6 +451,12 @@ class SystemEventMonitor(
             initialBatteryStatus == BatteryManager.BATTERY_STATUS_FULL ||
                 initialLevel >= initialCap
         )
+        CustomStatusBarDeviceStateStore.updateBattery(
+            level = initialLevel,
+            charging = initialPlugged > 0,
+            full = isFullyChargedState,
+        )
+        updateStatusBarClock()
 
         // These are all protected system broadcasts, so the receiver is exported.
         ContextCompat.registerReceiver(
@@ -415,6 +467,7 @@ class SystemEventMonitor(
         )
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
         connectivityManager?.registerNetworkCallback(wifiRequest(), wifiCallback)
+        connectivityManager?.registerNetworkCallback(cellularRequest(), cellularCallback)
         connectivityManager?.registerNetworkCallback(vpnRequest(), vpnCallback)
 
         runCatching {
@@ -441,6 +494,7 @@ class SystemEventMonitor(
         runCatching { context.contentResolver.unregisterContentObserver(adbWifiObserver) }
         audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
         connectivityManager?.unregisterNetworkCallback(wifiCallback)
+        connectivityManager?.unregisterNetworkCallback(cellularCallback)
         connectivityManager?.unregisterNetworkCallback(vpnCallback)
     }
 
@@ -662,12 +716,6 @@ class SystemEventMonitor(
         val isPlugged = plugged == BatteryManager.BATTERY_PLUGGED_AC ||
             plugged == BatteryManager.BATTERY_PLUGGED_USB ||
             plugged == BatteryManager.BATTERY_PLUGGED_WIRELESS
-
-        if (!isPlugged) {
-            isFullyChargedState = false
-            return
-        }
-
         val level = if (scale > 0 && rawLevel >= 0) (rawLevel * 100 / scale) else getBatteryLevel(context)
         val cap = getBatteryChargeCap(context)
 
@@ -679,6 +727,16 @@ class SystemEventMonitor(
                 status == BatteryManager.BATTERY_STATUS_CHARGING
         )
         val isComplete = isStatusFull || isChargingStoppedAtCap
+        CustomStatusBarDeviceStateStore.updateBattery(
+            level = level,
+            charging = isPlugged,
+            full = isPlugged && isComplete,
+        )
+
+        if (!isPlugged) {
+            isFullyChargedState = false
+            return
+        }
 
         if (isComplete) {
             if (!isFullyChargedState) {
@@ -721,6 +779,10 @@ class SystemEventMonitor(
         addAction(Intent.ACTION_SCREEN_OFF)
         addAction(Intent.ACTION_SCREEN_ON)
         addAction(Intent.ACTION_USER_PRESENT)
+        addAction(Intent.ACTION_TIME_TICK)
+        addAction(Intent.ACTION_TIME_CHANGED)
+        addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        addAction(Intent.ACTION_LOCALE_CHANGED)
         addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
         addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         addAction(ACTION_USB_STATE)
@@ -730,9 +792,21 @@ class SystemEventMonitor(
         addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
     }
 
+    /** Refreshes the clock only on system time/locale events; there is no per-second timer. */
+    private fun updateStatusBarClock() {
+        CustomStatusBarDeviceStateStore.updateClock(
+            DateFormat.getTimeFormat(context).format(Date()),
+        )
+    }
+
     /** Builds the [NetworkRequest] matching active Wi-Fi connections. */
     private fun wifiRequest() = NetworkRequest.Builder()
         .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+        .build()
+
+    /** Basic cellular presence/signal works through ConnectivityManager with no phone-state permission. */
+    private fun cellularRequest() = NetworkRequest.Builder()
+        .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
         .build()
 
     private val AudioDeviceInfo.isHeadphone: Boolean
