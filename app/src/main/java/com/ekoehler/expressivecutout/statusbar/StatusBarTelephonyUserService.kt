@@ -2,9 +2,11 @@ package com.ekoehler.expressivecutout.statusbar
 
 import android.content.Context
 import android.os.Build
+import android.telephony.SubscriptionManager
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
+import android.util.Log
 import androidx.annotation.Keep
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -29,10 +31,22 @@ class StatusBarTelephonyUserService() : IStatusBarTelephonyUserService.Stub() {
 
     override fun readDisplayInfo(): IntArray {
         val context = appContext ?: return intArrayOf(UNKNOWN, OVERRIDE_NONE)
-        val manager = context.getSystemService(TelephonyManager::class.java)
+        val base = context.getSystemService(TelephonyManager::class.java)
             ?: return intArrayOf(UNKNOWN, OVERRIDE_NONE)
+        val defaultDataSubId = runCatching { SubscriptionManager.getDefaultDataSubscriptionId() }
+            .getOrDefault(SubscriptionManager.INVALID_SUBSCRIPTION_ID)
+        val manager = if (SubscriptionManager.isValidSubscriptionId(defaultDataSubId)) {
+            runCatching { base.createForSubscriptionId(defaultDataSubId) }.getOrDefault(base)
+        } else {
+            base
+        }
 
         val fallbackNetwork = runCatching { manager.dataNetworkType }.getOrDefault(UNKNOWN)
+        Log.d(
+            TAG,
+            "STATUS_BAR_SIGNAL direct defaultDataSubId=$defaultDataSubId " +
+                "fallbackNetwork=$fallbackNetwork",
+        )
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             return intArrayOf(fallbackNetwork, OVERRIDE_NONE)
         }
@@ -52,6 +66,12 @@ class StatusBarTelephonyUserService() : IStatusBarTelephonyUserService.Stub() {
         val registered = runCatching {
             manager.registerTelephonyCallback(DIRECT_EXECUTOR, callback)
             true
+        }.onFailure { error ->
+            Log.d(
+                TAG,
+                "STATUS_BAR_SIGNAL direct registerFailure=" +
+                    "${error.javaClass.simpleName}:${error.message}",
+            )
         }.getOrDefault(false)
 
         if (!registered) return intArrayOf(fallbackNetwork, OVERRIDE_NONE)
@@ -62,6 +82,10 @@ class StatusBarTelephonyUserService() : IStatusBarTelephonyUserService.Stub() {
             runCatching { manager.unregisterTelephonyCallback(callback) }
         }
 
+        Log.d(
+            TAG,
+            "STATUS_BAR_SIGNAL direct network=${network.get()} override=${override.get()}",
+        )
         return intArrayOf(network.get(), override.get())
     }
 
@@ -80,6 +104,7 @@ class StatusBarTelephonyUserService() : IStatusBarTelephonyUserService.Stub() {
     }
 
     private companion object {
+        const val TAG = "StatusBarSignal"
         const val UNKNOWN = 0
         const val OVERRIDE_NONE = 0
         const val DISPLAY_INFO_TIMEOUT_MS = 900L
