@@ -1,9 +1,9 @@
-scene=status-bar-golden-v2
+scene=status-bar-golden-v3
 canvas=240x36 background=light
 style=DEFAULT display=Default / One UI signature=one-ui-default
 clock=9:41 weight=MEDIUM sizeSp=14.00
 network=5G mode=DISCREET weight=MEDIUM sizeSp=9.25
 signal=CLASSIC_BARS level=4 active=4 geometry=classic-rounded-bars
-wifi=CLASSIC_ARCS level=4 arcs=3 stroke=balanced
-battery=CLASSIC_ANDROID level=67 charging=false numeric=false shape=android-outline
+wifi=CLASSIC_ARCS level=4 activeParts=3 stroke=balanced
+battery=CLASSIC_ANDROID level=67 fill=0.670 charging=false numeric=false shape=android-outline
 spacingDp=4.00 edgeInsetDp=8.00
