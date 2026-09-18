@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
+import com.ekoehler.expressivecutout.data.IosBatteryColorMode
 import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 import com.ekoehler.expressivecutout.data.PixelStatusBarScale
 import kotlin.math.min
@@ -238,6 +239,7 @@ internal fun PixelStatusBarLayer(
                     scale = scales.battery,
                     profile = styleSpec.battery,
                     visualMode = styleSpec.batteryVisualMode,
+                    iosBatteryColorMode = safe.iosBatteryColorMode,
                     modifier = Modifier.offset(y = batteryOptical.batteryYDp.dp),
                 )
                 if (showPercentage && outsidePercentage != null) {
@@ -434,6 +436,7 @@ internal fun PixelBatteryGlyph(
     modifier: Modifier = Modifier,
     profile: StatusBarBatteryIconProfile? = null,
     visualMode: StatusBarBatteryVisualMode = StatusBarBatteryVisualMode.CLASSIC_ANDROID,
+    iosBatteryColorMode: IosBatteryColorMode = IosBatteryColorMode.MONOCHROME,
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     val glyphProfile = profile ?: StatusBarStyleRegistry.defaultStyle.battery
@@ -443,9 +446,10 @@ internal fun PixelBatteryGlyph(
         else -> null
     }
     if (measured != null) {
+        val measuredTint = IosBatteryStatusColors.resolve(level, tint, iosBatteryColorMode)
         IosMeasuredBatteryGlyph(
             geometry = measured,
-            tint = tint,
+            tint = measuredTint,
             widthDp = glyphProfile.widthDp,
             heightDp = glyphProfile.heightDp,
             scale = safeScale,
