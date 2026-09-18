@@ -4,14 +4,10 @@ import android.content.Context
 import android.util.Log
 import com.ekoehler.expressivecutout.system.ShizukuState
 import com.ekoehler.expressivecutout.system.ShizukuStatus
-import java.io.File
-import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withContext
-import rikka.shizuku.ShizukuBinderWrapper
-import rikka.shizuku.SystemServiceHelper
 
 /**
  * Parses the stable policy fields that Android's WindowManager dumps for the status bar.
@@ -64,8 +60,11 @@ internal object WindowPolicyAppearanceParser {
  * Shizuku shell identity; any failure returns null so Auto mode falls back to the system theme.
  */
 internal class ShizukuWindowAppearanceSource(
-    private val context: Context,
+    context: Context,
+    transport: WindowPolicyDumpTransport = ShizukuUserServiceWindowPolicyDumpTransport(context),
 ) : SystemBarAppearanceSource {
+
+    private val reader = WindowPolicySnapshotReader(transport)
 
     override val changes: Flow<SystemBarAppearanceSnapshot> = emptyFlow()
 
@@ -81,34 +80,25 @@ internal class ShizukuWindowAppearanceSource(
         }
 
         runCatching {
-            val target = SystemServiceHelper.getSystemService("window")
-                ?: error("window service unavailable")
-            val windowBinder = ShizukuBinderWrapper(target)
-            val dumpFile = File.createTempFile("window-policy-", ".txt", context.cacheDir)
-            try {
-                FileOutputStream(dumpFile).use { stream ->
-                    windowBinder.dump(stream.fd, arrayOf("policy"))
-                    stream.flush()
-                }
-                val raw = dumpFile.readText()
-                val snapshot = WindowPolicyAppearanceParser.parse(raw)
-                Log.d(
-                    TAG,
-                    "AUTO_APPEARANCE source=window_policy shizuku=READY " +
-                        "rawAvailable=${raw.isNotBlank()} rawLength=${raw.length} " +
-                        "globalAppearance=${snapshot?.globalAppearance} " +
-                        "regions=${snapshot?.regions?.size ?: 0} parserSuccess=${snapshot != null} " +
-                        "relevant=${relevantLines(raw)}",
-                )
-                snapshot
-            } finally {
-                dumpFile.delete()
-            }
+            val read = reader.read()
+            val raw = read.raw
+            val snapshot = read.snapshot
+            Log.d(
+                TAG,
+                "AUTO_APPEARANCE source=window_policy shizuku=READY " +
+                    "transport=user_service rawAvailable=${!raw.isNullOrBlank()} " +
+                    "rawLength=${raw?.length ?: 0} " +
+                    "globalAppearance=${snapshot?.globalAppearance} " +
+                    "regions=${snapshot?.regions?.size ?: 0} parserSuccess=${snapshot != null} " +
+                    "relevant=${raw?.let(::relevantLines) ?: "<none>"}",
+            )
+            snapshot
         }.onFailure { error ->
             Log.d(
                 TAG,
-                "AUTO_APPEARANCE source=window_policy shizuku=READY rawAvailable=false " +
-                    "parserSuccess=false reason=${error.javaClass.simpleName}",
+                "AUTO_APPEARANCE source=window_policy shizuku=READY " +
+                    "transport=user_service rawAvailable=false parserSuccess=false " +
+                    "reason=${error.javaClass.simpleName}:${error.message}",
             )
         }.getOrNull()
     }
