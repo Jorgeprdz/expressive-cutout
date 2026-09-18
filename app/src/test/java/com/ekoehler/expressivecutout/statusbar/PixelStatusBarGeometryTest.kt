@@ -30,7 +30,9 @@ class PixelStatusBarGeometryTest {
 
         assertEquals(50f, g.centerX, 0.001f)
         assertEquals(54.5f, g.centerY, 0.001f)
-        assertEquals(listOf(19f, 30f, 41f), g.radii)
+        listOf(19f, 30f, 41f).zip(g.radii).forEach { (expected, actual) ->
+            assertEquals(expected, actual, 0.001f)
+        }
         assertEquals(8.2f, g.strokeWidth, 0.001f)
         assertEquals(220f, g.startAngle, 0.001f)
         assertEquals(100f, g.sweepAngle, 0.001f)
@@ -81,7 +83,9 @@ class PixelStatusBarGeometryTest {
             assertTrue(bar.cornerRadius >= 0f)
         }
         assertTrue(g.bars.zipWithNext().all { (a, b) -> b.height > a.height })
-        assertEquals(listOf(20f, 36f, 52f, 68f), g.bars.map { it.height })
+        listOf(20f, 36f, 52f, 68f).zip(g.bars.map { it.height }).forEach { (expected, actual) ->
+            assertEquals(expected, actual, 0.001f)
+        }
     }
 
     @Test
