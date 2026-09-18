@@ -1,0 +1,9 @@
+scene=status-bar-golden-v1
+canvas=240x36 background=light
+style=IOS_26 display=iOS 26 signature=ios26-outline
+clock=9:41 weight=MEDIUM sizeSp=14.20
+network=5G mode=DISCREET weight=MEDIUM sizeSp=9.20
+signal=IOS_ROUNDED_BARS level=4 active=4 geometry=classic-rounded-bars
+wifi=IOS_ARCS level=4 arcs=3 stroke=medium-rounded
+battery=IOS_OUTLINE_FILL level=67 charging=false numeric=false shape=outline-fill
+spacingDp=4.20 edgeInsetDp=8.00
