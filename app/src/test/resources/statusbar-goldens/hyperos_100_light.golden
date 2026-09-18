@@ -1,9 +1,9 @@
-scene=status-bar-golden-v2
+scene=status-bar-golden-v3
 canvas=240x36 background=light
 style=HYPER_OS display=HyperOS signature=hyperos-balanced-numeric
 clock=9:41 weight=REGULAR sizeSp=13.50
 network=5G mode=DISCREET weight=REGULAR sizeSp=8.80
 signal=CLASSIC_BARS level=4 active=4 geometry=compact-balanced-bars
-wifi=HYPER_COMPACT_ARCS level=4 arcs=3 stroke=compact-medium
-battery=NUMERIC_CAPSULE_COMPACT level=100 charging=false numeric=true shape=compact-number-pill
+wifi=HYPER_COMPACT_ARCS level=4 activeParts=3 stroke=compact-medium
+battery=NUMERIC_CAPSULE_COMPACT level=100 fill=1.000 charging=false numeric=true shape=compact-number-pill
 spacingDp=3.00 edgeInsetDp=7.00
