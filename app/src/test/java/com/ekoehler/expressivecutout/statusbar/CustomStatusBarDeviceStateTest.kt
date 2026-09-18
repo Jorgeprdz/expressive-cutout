@@ -36,6 +36,43 @@ class CustomStatusBarDeviceStateTest {
     }
 
     @Test
+    fun `cellular presence updates preserve known network type`() {
+        val start = CustomStatusBarDeviceState(
+            cellular = StatusBarCellularState(
+                connected = true,
+                level = 2,
+                networkType = StatusBarNetworkType.FIVE_G,
+            ),
+        )
+
+        val updated = CustomStatusBarDeviceReducer.withCellularPresence(start, connected = true, level = 4)
+
+        assertTrue(updated.cellular.connected)
+        assertEquals(4, updated.cellular.level)
+        assertEquals(StatusBarNetworkType.FIVE_G, updated.cellular.networkType)
+    }
+
+    @Test
+    fun `network type update preserves live signal level`() {
+        val start = CustomStatusBarDeviceState(
+            cellular = StatusBarCellularState(
+                connected = true,
+                level = 3,
+                networkType = null,
+            ),
+        )
+
+        val updated = CustomStatusBarDeviceReducer.withCellularNetworkType(
+            start,
+            StatusBarNetworkType.LTE,
+        )
+
+        assertTrue(updated.cellular.connected)
+        assertEquals(3, updated.cellular.level)
+        assertEquals(StatusBarNetworkType.LTE, updated.cellular.networkType)
+    }
+
+    @Test
     fun `battery update preserves unrelated device state`() {
         val initial = CustomStatusBarDeviceState(
             timeText = "12:34",
