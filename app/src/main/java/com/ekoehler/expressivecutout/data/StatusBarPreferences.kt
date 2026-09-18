@@ -77,10 +77,10 @@ class StatusBarPreferences(private val context: Context) : JsonSerializable {
         }
 
     val customStatusBarEnabled: Flow<Boolean> =
-        customStatusBarSettings.map(CustomStatusBarSettings::enabled)
+        customStatusBarSettings.map { it.enabled }
 
     val customStatusBarAppearance: Flow<CustomStatusBarAppearancePreference> =
-        customStatusBarSettings.map(CustomStatusBarSettings::appearance)
+        customStatusBarSettings.map { it.appearance }
 
     suspend fun setHideNotificationIcons(hide: Boolean) = context.statusBarDataStore.edit { prefs ->
         prefs[HIDE_NOTIFICATION_ICONS] = hide
