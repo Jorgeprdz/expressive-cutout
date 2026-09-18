@@ -18,11 +18,10 @@ import kotlinx.coroutines.withContext
  */
 internal object WindowPolicyAppearanceParser {
 
-    private val regionPattern = Regex(
-        """AppearanceRegion\{([^}]*)bounds=\[\s*(-?\d+)\s*,\s*(-?\d+)\s*]\[\s*(-?\d+)\s*,\s*(-?\d+)\s*]}""",
-    )
-
     fun parse(raw: String): SystemBarAppearanceSnapshot? {
+        val regionPattern = Regex(
+            """AppearanceRegion\{([^}]*)bounds=\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]\}""",
+        )
         val globalAppearance = raw.lineSequence()
             .map(String::trim)
             .firstOrNull { it.startsWith("mLastAppearance=") }
@@ -98,10 +97,18 @@ internal class ShizukuWindowAppearanceSource(
                 TAG,
                 "AUTO_APPEARANCE source=window_policy shizuku=READY " +
                     "transport=user_service rawAvailable=false parserSuccess=false " +
-                    "reason=${error.javaClass.simpleName}:${error.message}",
+                    "reason=${throwableSummary(error)}",
             )
         }.getOrNull()
     }
+
+    private fun throwableSummary(error: Throwable): String =
+        generateSequence<Throwable?>(error) { it.cause }
+            .filterNotNull()
+            .take(4)
+            .joinToString(" <- ") { cause ->
+                "${cause.javaClass.simpleName}:${cause.message}"
+            }
 
     private fun relevantLines(raw: String): String = raw.lineSequence()
         .map(String::trim)

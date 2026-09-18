@@ -156,7 +156,7 @@ internal class ShizukuUserServiceWindowPolicyDumpTransport(
 
     private companion object {
         const val TAG = "StatusBarAuto"
-        const val USER_SERVICE_VERSION = 1
+        const val USER_SERVICE_VERSION = 2
         const val BIND_TIMEOUT_MS = 3_000L
     }
 }
