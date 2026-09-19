@@ -12,20 +12,63 @@ enum class CustomStatusBarStyle {
     companion object {
         fun fromPersisted(raw: String?): CustomStatusBarStyle {
             val normalized = raw?.trim()?.uppercase()
-            return when (normalized) {
+            val legacy = when (normalized) {
                 null,
-                "",
+                "" -> IOS_27
+                "IOS_26" -> IOS_27
                 "DEFAULT",
                 "ONE_UI",
                 "ONE_UI_EXISTING",
-                "PIXEL" -> DEFAULT
+                "PIXEL",
+                "PIXEL_15",
                 "PIXEL_16",
-                "PIXEL_17" -> PIXEL_16_17
-                "NOTHING_OS" -> NOTHING_OS_5
-                else -> entries.firstOrNull { it.name == normalized } ?: DEFAULT
+                "PIXEL_17",
+                "PIXEL_16_17",
+                "HYPER_OS",
+                "NOTHING_OS",
+                "NOTHING_OS_5",
+                -> PIXEL_16_17
+                else -> entries.firstOrNull { it.name == normalized } ?: IOS_27
             }
+            return CustomStatusBarStyleUiPolicy.migrateLegacy(legacy)
         }
     }
+}
+
+/** Product-facing style policy for the simplified M2C style pack. */
+object CustomStatusBarStyleUiPolicy {
+    val visibleStyles: List<CustomStatusBarStyle> = listOf(
+        CustomStatusBarStyle.IOS_27,
+        CustomStatusBarStyle.PIXEL_16_17,
+    )
+
+    fun migrateLegacy(style: CustomStatusBarStyle): CustomStatusBarStyle = when (style) {
+        CustomStatusBarStyle.IOS_26,
+        CustomStatusBarStyle.IOS_27,
+        -> CustomStatusBarStyle.IOS_27
+
+        CustomStatusBarStyle.DEFAULT,
+        CustomStatusBarStyle.PIXEL_15,
+        CustomStatusBarStyle.PIXEL_16_17,
+        CustomStatusBarStyle.HYPER_OS,
+        CustomStatusBarStyle.NOTHING_OS_5,
+        -> CustomStatusBarStyle.PIXEL_16_17
+    }
+
+    fun displayName(style: CustomStatusBarStyle): String = when (migrateLegacy(style)) {
+        CustomStatusBarStyle.IOS_27 -> "iOS 27"
+        CustomStatusBarStyle.PIXEL_16_17 -> "Pixel 16"
+        else -> "iOS 27"
+    }
+
+    fun description(style: CustomStatusBarStyle): String = when (migrateLegacy(style)) {
+        CustomStatusBarStyle.IOS_27 -> "Rounded, polished and closest to the current approved look."
+        CustomStatusBarStyle.PIXEL_16_17 -> "Modern Android spacing with Pixel-style signal, Wi-Fi and battery."
+        else -> "Rounded, polished and closest to the current approved look."
+    }
+
+    fun showsIosBatteryColor(style: CustomStatusBarStyle): Boolean =
+        migrateLegacy(style) == CustomStatusBarStyle.IOS_27
 }
 
 enum class PixelMobileBarStyle {
@@ -62,7 +105,7 @@ enum class IosBatteryColorMode {
 
 data class CustomStatusBarSettings(
     val enabled: Boolean = false,
-    val style: CustomStatusBarStyle = CustomStatusBarStyle.DEFAULT,
+    val style: CustomStatusBarStyle = CustomStatusBarStyle.IOS_27,
     val appearance: CustomStatusBarAppearancePreference = CustomStatusBarAppearancePreference.AUTO,
     val masterScale: Float = DEFAULT_MASTER_SCALE,
     val clockScale: Float = DEFAULT_COMPONENT_SCALE,
@@ -80,6 +123,7 @@ data class CustomStatusBarSettings(
     val iosBatteryColorMode: IosBatteryColorMode = IosBatteryColorMode.MONOCHROME,
 ) {
     fun sanitized(): CustomStatusBarSettings = copy(
+        style = CustomStatusBarStyleUiPolicy.migrateLegacy(style),
         masterScale = masterScale.coerceIn(MIN_MASTER_SCALE, MAX_MASTER_SCALE),
         clockScale = clockScale.coerceIn(MIN_COMPONENT_SCALE, MAX_COMPONENT_SCALE),
         clockOffsetXDp = clockOffsetXDp.coerceIn(-MAX_OFFSET_DP, MAX_OFFSET_DP),
@@ -93,7 +137,7 @@ data class CustomStatusBarSettings(
         statusBarOffsetYDp = statusBarOffsetYDp.coerceIn(-MAX_GLOBAL_Y_DP, MAX_GLOBAL_Y_DP),
     )
 
-    /** Restores the default visual profile without unexpectedly disabling the live feature. */
+    /** Restores the default simplified visual profile without unexpectedly disabling the live feature. */
     fun withPixelDefaults(): CustomStatusBarSettings = DEFAULT.copy(
         enabled = enabled,
         appearance = appearance,
