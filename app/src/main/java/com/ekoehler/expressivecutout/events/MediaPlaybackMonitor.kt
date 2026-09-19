@@ -73,6 +73,10 @@ class MediaPlaybackMonitor(private val context: Context) {
     /** Stable ID of the media session currently registered with the live coordinator. */
     private var currentLiveMusicId: String? = null
 
+    /** Pending expiry for a paused music session that is still published by the player. */
+    private var pausedLiveMusicTimeoutJob: Job? = null
+    private var pausedLiveMusicTimeoutId: String? = null
+
     private val sessionsListener =
         MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
             rebind(controllers.orEmpty())
@@ -135,6 +139,7 @@ class MediaPlaybackMonitor(private val context: Context) {
 
     /** Removes the media session currently registered in the process-wide live coordinator. */
     private fun clearLiveMusic() {
+        cancelPausedLiveMusicTimeout()
         currentLiveMusicId?.let(LiveActivityRegistry.coordinator::remove)
         currentLiveMusicId = null
     }
@@ -144,6 +149,37 @@ class MediaPlaybackMonitor(private val context: Context) {
         showJob?.cancel()
         showJob = null
         lastShownKey = null
+    }
+
+    /** Keeps a paused session briefly resumable, then clears its stale pill if it never resumes. */
+    private fun schedulePausedLiveMusicTimeout(stableId: String) {
+        if (pausedLiveMusicTimeoutId == stableId && pausedLiveMusicTimeoutJob?.isActive == true) return
+        cancelPausedLiveMusicTimeout()
+        pausedLiveMusicTimeoutId = stableId
+        pausedLiveMusicTimeoutJob = scope.launch {
+            val pausedAt = SystemClock.elapsedRealtime()
+            delay(MusicPauseTimeoutPolicy.DEFAULT_TIMEOUT_MS)
+            val now = SystemClock.elapsedRealtime()
+            if (MusicPauseTimeoutPolicy.hasExpired(pausedAt, now)) {
+                expirePausedLiveMusic(stableId)
+            }
+            pausedLiveMusicTimeoutId = null
+            pausedLiveMusicTimeoutJob = null
+        }
+    }
+
+    private fun cancelPausedLiveMusicTimeout() {
+        pausedLiveMusicTimeoutJob?.cancel()
+        pausedLiveMusicTimeoutJob = null
+        pausedLiveMusicTimeoutId = null
+    }
+
+    private fun expirePausedLiveMusic(stableId: String) {
+        if (currentLiveMusicId != stableId) return
+        LiveActivityRegistry.coordinator.remove(stableId)
+        currentLiveMusicId = null
+        clearPendingShow()
+        NowPlayingBus.update(null)
     }
 
     /** Attach callbacks to newly active sessions and detach ones that have gone away. */
@@ -344,11 +380,13 @@ class MediaPlaybackMonitor(private val context: Context) {
         }
         LiveActivityRegistry.coordinator.upsert(liveMusic)
 
-        // Pop the island when a fresh track begins playing; reset when paused so a resume re-pops.
+        // Keep a paused session resumable briefly, then close stale pills if the player never resumes.
         if (!playing) {
             clearPendingShow()
+            schedulePausedLiveMusicTimeout(liveMusic.stableId)
             return
         }
+        cancelPausedLiveMusicTimeout()
         val key = "${primary.packageName}|$title|$artist"
         if (key == lastShownKey) return
         lastShownKey = key
