@@ -150,7 +150,7 @@ data class CustomStatusBarSettings(
         const val MAX_COMPONENT_SCALE = 1.40f
         const val MIN_SPACING_DP = 0f
         const val MAX_SPACING_DP = 12f
-        const val MAX_OFFSET_DP = 24f
+        const val MAX_OFFSET_DP = 48f
         const val MAX_GLOBAL_Y_DP = 12f
         const val DEFAULT_MASTER_SCALE = 1f
         const val DEFAULT_COMPONENT_SCALE = 1f
