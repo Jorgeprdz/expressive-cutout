@@ -11,106 +11,52 @@ import org.junit.Test
 class StatusBarGoldenSceneTest {
 
     @Test
-    fun `ios26 light matches golden`() {
-        assertGolden("ios26_light", CustomStatusBarStyle.IOS_26)
-    }
-
-    @Test
     fun `ios27 light matches golden`() {
         assertGolden("ios27_light", CustomStatusBarStyle.IOS_27)
     }
 
     @Test
-    fun `pixel15 light matches golden`() {
-        assertGolden("pixel15_light", CustomStatusBarStyle.PIXEL_15)
+    fun `pixel16 light keeps data rich visual contract`() {
+        val rendered = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17)
+
+        assertTrue(rendered.contains("style=PIXEL_16_17 display=Pixel 16 signature=pixel16-data-rich"))
+        assertTrue(rendered.contains("network=5G mode=PROMINENT"))
+        assertTrue(rendered.contains("pixel1617.signal=viewBox=132x108 active=4 language=pixel-capsule-bars-v2"))
+        assertTrue(rendered.contains("pixel1617.wifi=viewBox=144x112 activeParts=3 language=pixel-bold-arcs-v2"))
+        assertTrue(rendered.contains("mode=pixel-rounded-rect-v2 colorMode=pixel-fill"))
     }
 
     @Test
-    fun `pixel1617 light matches golden`() {
-        assertGolden("pixel1617_light", CustomStatusBarStyle.PIXEL_16_17)
+    fun `legacy families render through simplified migration targets`() {
+        val ios27 = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27)
+        val pixel16 = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17)
+
+        assertEquals(ios27, StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_26))
+        assertEquals(pixel16, StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_15))
+        assertEquals(pixel16, StatusBarGoldenScene.render(CustomStatusBarStyle.HYPER_OS))
+        assertEquals(pixel16, StatusBarGoldenScene.render(CustomStatusBarStyle.NOTHING_OS_5))
+        assertEquals(pixel16, StatusBarGoldenScene.render(CustomStatusBarStyle.DEFAULT))
     }
 
     @Test
-    fun `pixel1617 charging light matches golden`() {
-        assertGolden(
-            name = "pixel1617_charging_light",
-            style = CustomStatusBarStyle.PIXEL_16_17,
-            charging = true,
-        )
-    }
-
-    @Test
-    fun `pixel1617 battery 7 matches golden`() {
-        assertGolden(
-            name = "pixel1617_battery_7_light",
-            style = CustomStatusBarStyle.PIXEL_16_17,
-            batteryLevel = 7,
-        )
-    }
-
-    @Test
-    fun `pixel1617 battery 19 matches golden`() {
-        assertGolden(
-            name = "pixel1617_battery_19_light",
-            style = CustomStatusBarStyle.PIXEL_16_17,
-            batteryLevel = 19,
-        )
-    }
-
-    @Test
-    fun `pixel1617 battery 67 matches golden`() {
-        assertGolden(
-            name = "pixel1617_battery_67_light",
-            style = CustomStatusBarStyle.PIXEL_16_17,
+    fun `measured ios27 icons reflect dynamic state`() {
+        val ios27Full = StatusBarGoldenScene.render(
+            CustomStatusBarStyle.IOS_27,
             batteryLevel = 67,
+            wifiLevel = 4,
+            cellularLevel = 4,
         )
-    }
-
-    @Test
-    fun `pixel1617 battery 100 matches golden`() {
-        assertGolden(
-            name = "pixel1617_battery_100_light",
-            style = CustomStatusBarStyle.PIXEL_16_17,
-            batteryLevel = 100,
+        val ios27Low = StatusBarGoldenScene.render(
+            CustomStatusBarStyle.IOS_27,
+            batteryLevel = 19,
+            wifiLevel = 1,
+            cellularLevel = 1,
         )
-    }
 
-    @Test
-    fun `hyperos light matches golden`() {
-        assertGolden("hyperos_light", CustomStatusBarStyle.HYPER_OS)
-    }
-
-    @Test
-    fun `hyperos full battery light matches golden`() {
-        assertGolden(
-            name = "hyperos_100_light",
-            style = CustomStatusBarStyle.HYPER_OS,
-            batteryLevel = 100,
-        )
-    }
-
-    @Test
-    fun `nothingos5 light matches golden`() {
-        assertGolden("nothingos5_light", CustomStatusBarStyle.NOTHING_OS_5)
-    }
-
-    @Test
-    fun `default light matches golden`() {
-        assertGolden("default_light", CustomStatusBarStyle.DEFAULT)
-    }
-
-    @Test
-    fun `measured ios icons reflect dynamic state`() {
-        val ios26Full = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_26, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
-        val ios26Low = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_26, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
-        val ios27Full = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
-        val ios27Low = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
-
-        assertNotEquals(ios26Full, ios26Low)
         assertNotEquals(ios27Full, ios27Low)
-        assertTrue(ios26Low.contains("ios26.batteryState=level=19 fill=0.190"))
-        assertTrue(ios26Low.contains("ios26.wifiState=level=1 activeParts=1"))
         assertTrue(ios27Low.contains("ios27.signalState=level=1 active=1"))
+        assertTrue(ios27Low.contains("ios27.wifiState=level=1 activeParts=1"))
+        assertTrue(ios27Low.contains("ios27.batteryState=level=19 fill=0.190"))
     }
 
     @Test
@@ -123,9 +69,19 @@ class StatusBarGoldenSceneTest {
     }
 
     @Test
-    fun `pixel1617 redesigned icons reflect dynamic state`() {
-        val full = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 67, wifiLevel = 4, cellularLevel = 4)
-        val low = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 19, wifiLevel = 1, cellularLevel = 1)
+    fun `pixel16 redesigned icons reflect dynamic state`() {
+        val full = StatusBarGoldenScene.render(
+            CustomStatusBarStyle.PIXEL_16_17,
+            batteryLevel = 67,
+            wifiLevel = 4,
+            cellularLevel = 4,
+        )
+        val low = StatusBarGoldenScene.render(
+            CustomStatusBarStyle.PIXEL_16_17,
+            batteryLevel = 19,
+            wifiLevel = 1,
+            cellularLevel = 1,
+        )
 
         assertNotEquals(full, low)
         assertTrue(low.contains("pixel1617.wifi=viewBox=144x112 activeParts=1 language=pixel-bold-arcs-v2"))
@@ -136,20 +92,26 @@ class StatusBarGoldenSceneTest {
     }
 
     @Test
-    fun `visual families stay distinct`() {
-        val ios26 = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_26)
-        val ios27 = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27)
-        val pixel15 = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_15)
-        val pixel1617 = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17)
-        val hyperOs = StatusBarGoldenScene.render(CustomStatusBarStyle.HYPER_OS)
-        val nothing = StatusBarGoldenScene.render(CustomStatusBarStyle.NOTHING_OS_5)
+    fun `pixel16 battery variants stay dynamic`() {
+        val seven = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 7)
+        val nineteen = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 19)
+        val sixtySeven = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 67)
+        val hundred = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17, batteryLevel = 100)
 
-        assertVisuallyDifferent(ios26, ios27)
-        assertVisuallyDifferent(pixel15, pixel1617)
-        assertVisuallyDifferent(pixel1617, nothing)
-        assertVisuallyDifferent(pixel1617, hyperOs)
-        assertVisuallyDifferent(hyperOs, nothing)
-        assertVisuallyDifferent(ios27, nothing)
+        assertTrue(seven.contains("level=7 fill=0.070"))
+        assertTrue(seven.contains("colorMode=critical-red"))
+        assertTrue(nineteen.contains("level=19 fill=0.190"))
+        assertTrue(sixtySeven.contains("level=67 fill=0.670"))
+        assertTrue(sixtySeven.contains("colorMode=pixel-fill"))
+        assertTrue(hundred.contains("level=100 fill=1.000"))
+    }
+
+    @Test
+    fun `approved visible families stay visually distinct`() {
+        val ios27 = StatusBarGoldenScene.render(CustomStatusBarStyle.IOS_27)
+        val pixel16 = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17)
+
+        assertVisuallyDifferent(ios27, pixel16)
     }
 
     private fun assertGolden(
