@@ -183,6 +183,71 @@ STATUS_BAR_SIGNAL direct network=<type> override=<override>
 
 No SSID, phone number, IMSI, ICCID or personal identifiers should be printed.
 
+## M2C — App visual redesign + style simplification
+
+M2C turns the status-bar pack from an experimental catalogue into a focused product surface.
+
+### Product decision
+
+Only two styles are visible and selectable:
+
+- `iOS 27`
+- `Pixel 16`
+
+The old families are no longer visible in the app UI:
+
+- `Default / One UI`
+- `iOS 26`
+- `Pixel 15`
+- `HyperOS`
+- `Nothing OS 5`
+
+The internal enum values remain for safe preference migration and backward compatibility, but `StatusBarStyleRegistry.allStyles` now exposes only the two approved styles.
+
+### Legacy preference migration
+
+Persisted legacy styles migrate silently:
+
+- `IOS_26` -> `IOS_27`
+- `PIXEL_15` -> `PIXEL_16_17`
+- `PIXEL_16` / `PIXEL_17` -> `PIXEL_16_17`
+- `HYPER_OS` -> `PIXEL_16_17`
+- `NOTHING_OS` / `NOTHING_OS_5` -> `PIXEL_16_17`
+- `DEFAULT` / `ONE_UI` / `ONE_UI_EXISTING` -> `PIXEL_16_17`
+- unknown values -> `IOS_27`
+
+`CustomStatusBarSettings.sanitized()` also normalizes any in-memory legacy value before rendering or persistence.
+
+### UI changes
+
+`CustomStatusBarScreen` was redesigned around a simpler hierarchy:
+
+- premium preview card at the top;
+- two-style segmented selector;
+- compact icon appearance control;
+- single master scale control;
+- iOS battery color card shown only for `iOS 27`;
+- one compact fine-tuning section for icon scale, spacing, battery scale and vertical position.
+
+Removed from the visible screen:
+
+- legacy style chips;
+- always-visible iOS-only battery controls;
+- separate clock, system icon and battery subsections that made the screen read like a debug panel;
+- mobile bar style selector from the main product surface.
+
+### Preserved behaviour
+
+M2C does not change:
+
+- Dynamic Island;
+- Live Activities;
+- Shizuku status-bar ownership;
+- Auto color source;
+- mobile network label source;
+- iOS battery color thresholds (`<10%` red, `10–19%` yellow);
+- Pixel 16 geometry.
+
 ## Golden visual gate
 
 The JVM golden scene uses `scene=status-bar-golden-v3`.
@@ -210,22 +275,17 @@ The test entry point remains:
 ./gradlew testDebugUnitTest --no-daemon
 ```
 
-## Families preserved but not redesigned in M2B.7
+## Families preserved but not redesigned in M2C
 
-- Default / One UI
-- Pixel 15
-- Pixel 16/17 visual geometry
-- HyperOS
-- Nothing OS 5
-- iOS 26 / iOS 27 measured geometry
+The old visual families remain only as migration inputs. They are not selectable from the UI.
 
 ## Known bugs still outside this turn
 
 Still not fixed here:
 
-- Pixel visual design is still considered `NO PASS` by product review.
+- Pixel visual design is still considered `NO PASS` by earlier product review, but it remains as the only Android-style option.
 - Mobile signal strength still depends on platform/OEM signal data quality.
 - If Shizuku is not ready, Auto color falls back safely instead of guessing.
 - If TelephonyDisplayInfo and dumpsys both fail, the mobile text label remains hidden instead of inventing a label.
 
-M2B.7 fixes runtime source ownership and diagnostics. It does not redesign Pixel.
+M2C simplifies product surface and settings UX. It does not redesign Pixel geometry.
