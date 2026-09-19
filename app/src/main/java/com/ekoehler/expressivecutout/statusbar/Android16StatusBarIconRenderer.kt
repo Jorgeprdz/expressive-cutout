@@ -76,19 +76,15 @@ internal fun Android16MeasuredWifiGlyph(
         val active = pixelActiveColor(tint)
         val inactive = pixelInactiveColor(tint, inactiveAlpha)
         val box = fitAndroid16Box(geometry.aspectRatio)
-        drawAndroid16Arc(
+        drawAndroid16WifiCurve(
             visibleRect = geometry.outer.toRect(box),
             stroke = box.height * geometry.outerStrokeToHeight,
-            color = if (activeParts >= 3) active.copy(alpha = 0.94f) else inactive,
-            startAngle = 207f,
-            sweepAngle = 126f,
+            color = if (activeParts >= 3) active.copy(alpha = 0.96f) else inactive,
         )
-        drawAndroid16Arc(
+        drawAndroid16WifiCurve(
             visibleRect = geometry.middle.toRect(box),
             stroke = box.height * geometry.middleStrokeToHeight,
             color = if (activeParts >= 2) active else inactive,
-            startAngle = 210f,
-            sweepAngle = 120f,
         )
         val dot = geometry.dot.toRect(box)
         drawCircle(
@@ -217,26 +213,28 @@ private fun DrawScope.drawAndroid16SignalPart(
     )
 }
 
-private fun DrawScope.drawAndroid16Arc(
+private fun DrawScope.drawAndroid16WifiCurve(
     visibleRect: Rect,
     stroke: Float,
     color: Color,
-    startAngle: Float,
-    sweepAngle: Float,
 ) {
-    val ovalHeight = visibleRect.height * 2.05f
-    val ovalTop = visibleRect.top + stroke * 0.42f
-    drawArc(
+    val safeStroke = stroke.coerceAtLeast(1f)
+    val halfStroke = safeStroke / 2f
+    val startY = visibleRect.bottom - safeStroke * 0.18f
+    val start = Offset(visibleRect.left + halfStroke, startY)
+    val end = Offset(visibleRect.right - halfStroke, startY)
+    val control = Offset(
+        x = (visibleRect.left + visibleRect.right) / 2f,
+        y = visibleRect.top + halfStroke * 0.42f,
+    )
+    val path = Path().apply {
+        moveTo(start.x, start.y)
+        quadraticBezierTo(control.x, control.y, end.x, end.y)
+    }
+    drawPath(
+        path = path,
         color = color,
-        startAngle = startAngle,
-        sweepAngle = sweepAngle,
-        useCenter = false,
-        topLeft = Offset(visibleRect.left + stroke / 2f, ovalTop),
-        size = Size(
-            (visibleRect.width - stroke).coerceAtLeast(1f),
-            (ovalHeight - stroke).coerceAtLeast(1f),
-        ),
-        style = Stroke(width = stroke, cap = StrokeCap.Round),
+        style = Stroke(width = safeStroke, cap = StrokeCap.Round),
     )
 }
 
