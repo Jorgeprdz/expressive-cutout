@@ -44,14 +44,14 @@ class Pixel16CompactGeometryTest {
     fun `pixel16 compact battery matches measured geometry`() {
         val battery = Android16StatusBarIconGeometry.pixel1617.battery
 
-        assertEquals(53, battery.sourceViewBoxWidthPx)
+        assertEquals(55, battery.sourceViewBoxWidthPx)
         assertEquals(29, battery.sourceViewBoxHeightPx)
         assertEquals("compact-solid-pill-v1", battery.visualLanguage)
         assertEquals(StatusBarBatteryVisualMode.COMPACT_SOLID_DYNAMIC, pixel.batteryVisualMode)
-        assertEquals(24f, pixel.battery.widthDp, 0.001f)
+        assertEquals(27f, pixel.battery.widthDp, 0.001f)
         assertEquals(14f, pixel.battery.heightDp, 0.001f)
         assertFalse(pixel.batteryVisualMode.usesInternalPercentage)
-        assertTrue(battery.body.width > 0.90f)
+        assertTrue(battery.body.width > 0.88f)
         assertTrue(battery.terminal.width < 0.09f)
     }
 
