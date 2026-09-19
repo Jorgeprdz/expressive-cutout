@@ -3,6 +3,7 @@ package com.ekoehler.expressivecutout.statusbar
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
 import com.ekoehler.expressivecutout.data.CustomStatusBarStyle
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -89,9 +90,9 @@ class StatusBarStyleRegistryTest {
         val pixel16 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.PIXEL_16_17)
         val ios27 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.IOS_27)
 
-        assertEquals(StatusBarBatteryVisualMode.NUMERIC_CAPSULE_PROMINENT, pixel16.batteryVisualMode)
+        assertEquals(StatusBarBatteryVisualMode.COMPACT_SOLID_DYNAMIC, pixel16.batteryVisualMode)
         assertEquals(StatusBarBatteryVisualMode.IOS_SOLID_CAPSULE, ios27.batteryVisualMode)
-        assertTrue(pixel16.batteryVisualMode.usesInternalPercentage)
+        assertFalse(pixel16.batteryVisualMode.usesInternalPercentage)
     }
 
     @Test
@@ -100,7 +101,7 @@ class StatusBarStyleRegistryTest {
         val pixel16 = StatusBarStyleRegistry.resolve(CustomStatusBarStyle.PIXEL_16_17)
 
         assertEquals(StatusBarSignalVisualMode.IOS_BOLD_PILLS, ios27.signalVisualMode)
-        assertEquals(StatusBarSignalVisualMode.DOT_MATRIX, pixel16.signalVisualMode)
+        assertEquals(StatusBarSignalVisualMode.PIXEL_COMPACT_BARS, pixel16.signalVisualMode)
         assertEquals(StatusBarNetworkLabelMode.PROMINENT, pixel16.networkLabelMode)
     }
 }
