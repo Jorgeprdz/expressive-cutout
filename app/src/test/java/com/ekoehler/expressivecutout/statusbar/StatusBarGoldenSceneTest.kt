@@ -16,14 +16,15 @@ class StatusBarGoldenSceneTest {
     }
 
     @Test
-    fun `pixel16 light keeps data rich visual contract`() {
+    fun `pixel16 light keeps compact measured visual contract`() {
         val rendered = StatusBarGoldenScene.render(CustomStatusBarStyle.PIXEL_16_17)
 
-        assertTrue(rendered.contains("style=PIXEL_16_17 display=Pixel 16 signature=pixel16-data-rich"))
+        assertTrue(rendered.contains("style=PIXEL_16_17 display=Pixel 16 signature=pixel16-compact-measured"))
         assertTrue(rendered.contains("network=5G mode=PROMINENT"))
-        assertTrue(rendered.contains("pixel1617.signal=viewBox=132x108 active=4 language=pixel-capsule-bars-v2"))
-        assertTrue(rendered.contains("pixel1617.wifi=viewBox=144x112 activeParts=3 language=pixel-bold-arcs-v2"))
-        assertTrue(rendered.contains("mode=pixel-rounded-rect-v2 colorMode=pixel-fill"))
+        assertTrue(rendered.contains("pixel1617.signal=viewBox=38x30 active=4 language=compact-measured-bars"))
+        assertTrue(rendered.contains("pixel1617.wifi=viewBox=39x29 activeParts=3 language=compact-bold-arcs"))
+        assertTrue(rendered.contains("mode=compact-solid-pill-v1 colorMode=pixel-fill"))
+        assertTrue(rendered.contains("batteryText=hidden shape=compact-solid-dynamic"))
     }
 
     @Test
@@ -84,11 +85,11 @@ class StatusBarGoldenSceneTest {
         )
 
         assertNotEquals(full, low)
-        assertTrue(low.contains("pixel1617.wifi=viewBox=144x112 activeParts=1 language=pixel-bold-arcs-v2"))
-        assertTrue(low.contains("pixel1617.signal=viewBox=132x108 active=1 language=pixel-capsule-bars-v2"))
+        assertTrue(low.contains("pixel1617.wifi=viewBox=39x29 activeParts=1 language=compact-bold-arcs"))
+        assertTrue(low.contains("pixel1617.signal=viewBox=38x30 active=1 language=compact-measured-bars"))
         assertTrue(low.contains("level=19 fill=0.190"))
         assertTrue(low.contains("colorMode=critical-red"))
-        assertTrue(full.contains("mode=pixel-rounded-rect-v2 colorMode=pixel-fill"))
+        assertTrue(full.contains("mode=compact-solid-pill-v1 colorMode=pixel-fill"))
     }
 
     @Test
