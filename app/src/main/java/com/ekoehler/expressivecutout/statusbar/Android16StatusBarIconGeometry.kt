@@ -108,44 +108,48 @@ internal data class Android16MeasuredIconSet(
 }
 
 internal object Android16StatusBarIconGeometry {
+    /**
+     * Pixel 16 now uses the compact measured geometry approved in M2C.3. The source measurements
+     * are normalized from the Nothing-like reference but remain exposed as Pixel 16 in product UI.
+     */
     val pixel1617 = Android16MeasuredIconSet(
         label = "pixel1617",
         signal = Android16MeasuredSignalGeometry(
-            sourceViewBoxWidthPx = 132,
-            sourceViewBoxHeightPx = 108,
-            visualLanguage = "pixel-capsule-bars-v2",
+            sourceViewBoxWidthPx = 38,
+            sourceViewBoxHeightPx = 30,
+            visualLanguage = "compact-measured-bars",
             bars = listOf(
-                Android16MeasuredSignalBar(Android16FractionRect(0.000f, 0.535f, 0.152f, 0.385f), 0.500f),
-                Android16MeasuredSignalBar(Android16FractionRect(0.283f, 0.430f, 0.152f, 0.490f), 0.500f),
-                Android16MeasuredSignalBar(Android16FractionRect(0.566f, 0.325f, 0.152f, 0.595f), 0.500f),
-                Android16MeasuredSignalBar(Android16FractionRect(0.848f, 0.225f, 0.144f, 0.695f), 0.500f),
+                Android16MeasuredSignalBar(Android16FractionRect(0.000f, 0.500f, 0.158f, 0.500f), 0.400f),
+                Android16MeasuredSignalBar(Android16FractionRect(0.263f, 0.367f, 0.184f, 0.633f), 0.400f),
+                Android16MeasuredSignalBar(Android16FractionRect(0.553f, 0.167f, 0.158f, 0.833f), 0.400f),
+                Android16MeasuredSignalBar(Android16FractionRect(0.842f, 0.033f, 0.158f, 0.967f), 0.400f),
             ),
             lowerIndicators = emptyList(),
         ),
         wifi = Android16MeasuredWifiGeometry(
-            sourceViewBoxWidthPx = 144,
-            sourceViewBoxHeightPx = 112,
-            visualLanguage = "pixel-bold-arcs-v2",
-            outer = Android16FractionRect(0.030f, 0.040f, 0.940f, 0.392f),
-            outerStrokeToHeight = 0.196f,
-            middle = Android16FractionRect(0.235f, 0.445f, 0.530f, 0.286f),
-            middleStrokeToHeight = 0.188f,
-            dot = Android16FractionRect(0.408f, 0.742f, 0.184f, 0.237f),
+            sourceViewBoxWidthPx = 39,
+            sourceViewBoxHeightPx = 29,
+            visualLanguage = "compact-bold-arcs",
+            outer = Android16FractionRect(0.000f, 0.069f, 1.000f, 0.414f),
+            outerStrokeToHeight = 0.172f,
+            middle = Android16FractionRect(0.192f, 0.448f, 0.615f, 0.310f),
+            middleStrokeToHeight = 0.179f,
+            dot = Android16FractionRect(0.397f, 0.724f, 0.205f, 0.276f),
         ),
         battery = Android16MeasuredBatteryGeometry(
-            sourceViewBoxWidthPx = 224,
-            sourceViewBoxHeightPx = 112,
-            body = Android16FractionRect(0.000f, 0.040f, 0.897f, 0.920f),
-            bodyRadiusToHeight = 0.240f,
-            terminal = Android16FractionRect(0.942f, 0.330f, 0.049f, 0.340f),
+            sourceViewBoxWidthPx = 53,
+            sourceViewBoxHeightPx = 29,
+            body = Android16FractionRect(0.000f, 0.000f, 0.925f, 1.000f),
+            bodyRadiusToHeight = 0.215f,
+            terminal = Android16FractionRect(0.962f, 0.293f, 0.075f, 0.414f),
             terminalRadiusToWidth = 0.500f,
             redThreshold = 20,
             bodyColor = "#99A1AA",
-            activeColor = "#F0F4F5",
-            inactiveColor = "#7F8D97",
-            textColor = "#1C1D21",
+            activeColor = "#151515",
+            inactiveColor = "#15151533",
+            textColor = "none",
             criticalColor = "#F50003",
-            visualLanguage = "pixel-rounded-rect-v2",
+            visualLanguage = "compact-solid-pill-v1",
         ),
     )
 }
