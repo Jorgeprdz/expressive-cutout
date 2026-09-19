@@ -109,32 +109,33 @@ internal data class Android16MeasuredIconSet(
 
 internal object Android16StatusBarIconGeometry {
     /**
-     * Pixel 16 now uses the compact measured geometry approved in M2C.3. The source measurements
-     * are normalized from the Nothing-like reference but remain exposed as Pixel 16 in product UI.
+     * Pixel 16 uses the compact measured geometry approved in M2C.3. M2C.4 adds optical polish:
+     * wider mobile bars and symmetric rounded Wi-Fi curves so the tiny runtime glyphs do not read
+     * as square or under-weighted on a real launcher screen.
      */
     val pixel1617 = Android16MeasuredIconSet(
         label = "pixel1617",
         signal = Android16MeasuredSignalGeometry(
             sourceViewBoxWidthPx = 38,
             sourceViewBoxHeightPx = 30,
-            visualLanguage = "compact-measured-bars",
+            visualLanguage = "compact-weighted-bars",
             bars = listOf(
-                Android16MeasuredSignalBar(Android16FractionRect(0.000f, 0.500f, 0.158f, 0.500f), 0.400f),
-                Android16MeasuredSignalBar(Android16FractionRect(0.263f, 0.367f, 0.184f, 0.633f), 0.400f),
-                Android16MeasuredSignalBar(Android16FractionRect(0.553f, 0.167f, 0.158f, 0.833f), 0.400f),
-                Android16MeasuredSignalBar(Android16FractionRect(0.842f, 0.033f, 0.158f, 0.967f), 0.400f),
+                Android16MeasuredSignalBar(Android16FractionRect(0.000f, 0.500f, 0.205f, 0.500f), 0.360f),
+                Android16MeasuredSignalBar(Android16FractionRect(0.265f, 0.367f, 0.205f, 0.633f), 0.360f),
+                Android16MeasuredSignalBar(Android16FractionRect(0.530f, 0.167f, 0.205f, 0.833f), 0.360f),
+                Android16MeasuredSignalBar(Android16FractionRect(0.795f, 0.033f, 0.205f, 0.967f), 0.360f),
             ),
             lowerIndicators = emptyList(),
         ),
         wifi = Android16MeasuredWifiGeometry(
             sourceViewBoxWidthPx = 39,
             sourceViewBoxHeightPx = 29,
-            visualLanguage = "compact-bold-arcs",
-            outer = Android16FractionRect(0.000f, 0.069f, 1.000f, 0.414f),
-            outerStrokeToHeight = 0.172f,
-            middle = Android16FractionRect(0.192f, 0.448f, 0.615f, 0.310f),
-            middleStrokeToHeight = 0.179f,
-            dot = Android16FractionRect(0.397f, 0.724f, 0.205f, 0.276f),
+            visualLanguage = "compact-symmetric-arcs",
+            outer = Android16FractionRect(0.040f, 0.069f, 0.920f, 0.414f),
+            outerStrokeToHeight = 0.158f,
+            middle = Android16FractionRect(0.240f, 0.448f, 0.520f, 0.310f),
+            middleStrokeToHeight = 0.160f,
+            dot = Android16FractionRect(0.405f, 0.724f, 0.190f, 0.276f),
         ),
         battery = Android16MeasuredBatteryGeometry(
             sourceViewBoxWidthPx = 55,
