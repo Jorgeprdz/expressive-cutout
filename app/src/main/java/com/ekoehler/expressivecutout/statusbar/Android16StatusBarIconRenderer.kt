@@ -109,6 +109,7 @@ internal fun Android16MeasuredBatteryGlyph(
     heightDp: Float,
     scale: Float,
     modifier: Modifier = Modifier,
+    showText: Boolean = true,
 ) {
     val safeScale = scale.coerceAtLeast(0.1f)
     Canvas(
@@ -137,12 +138,14 @@ internal fun Android16MeasuredBatteryGlyph(
             else -> tint
         }
 
-        drawRoundRect(
-            color = Color.Black.copy(alpha = if (tint == Color.White) 0.10f else 0.06f),
-            topLeft = Offset(body.left, body.top + body.height * 0.035f),
-            size = Size(body.width, body.height),
-            cornerRadius = CornerRadius(bodyRadius),
-        )
+        if (showText) {
+            drawRoundRect(
+                color = Color.Black.copy(alpha = if (tint == Color.White) 0.10f else 0.06f),
+                topLeft = Offset(body.left, body.top + body.height * 0.035f),
+                size = Size(body.width, body.height),
+                cornerRadius = CornerRadius(bodyRadius),
+            )
+        }
         drawRoundRect(
             color = shell,
             topLeft = Offset(body.left, body.top),
@@ -159,29 +162,31 @@ internal fun Android16MeasuredBatteryGlyph(
             )
         }
         drawRoundRect(
-            color = shell.copy(alpha = 0.92f),
+            color = shell.copy(alpha = if (showText) 0.92f else 1f),
             topLeft = Offset(terminal.left, terminal.top),
             size = Size(terminal.width, terminal.height),
             cornerRadius = CornerRadius(terminalRadius),
         )
 
-        val textSize = body.height * when {
-            safeLevel >= 100 -> 0.46f
-            safeLevel < 10 -> 0.63f
-            else -> 0.58f
+        if (showText) {
+            val textSize = body.height * when {
+                safeLevel >= 100 -> 0.46f
+                safeLevel < 10 -> 0.63f
+                else -> 0.58f
+            }
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = textColor.toArgb()
+                textAlign = Paint.Align.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                this.textSize = textSize
+            }
+            drawContext.canvas.nativeCanvas.drawText(
+                safeLevel.toString(),
+                body.left + body.width / 2f,
+                body.top + body.height / 2f - (paint.ascent() + paint.descent()) / 2f,
+                paint,
+            )
         }
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = textColor.toArgb()
-            textAlign = Paint.Align.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-            this.textSize = textSize
-        }
-        drawContext.canvas.nativeCanvas.drawText(
-            safeLevel.toString(),
-            body.left + body.width / 2f,
-            body.top + body.height / 2f - (paint.ascent() + paint.descent()) / 2f,
-            paint,
-        )
         if (charging) {
             val bolt = Path().apply {
                 moveTo(body.right - body.width * 0.18f, body.top + body.height * 0.22f)
@@ -192,7 +197,7 @@ internal fun Android16MeasuredBatteryGlyph(
                 lineTo(body.right - body.width * 0.21f, body.top + body.height * 0.43f)
                 close()
             }
-            drawPath(bolt, textColor)
+            drawPath(bolt, if (showText) textColor else fillColor.contrastColor())
         }
     }
 }
