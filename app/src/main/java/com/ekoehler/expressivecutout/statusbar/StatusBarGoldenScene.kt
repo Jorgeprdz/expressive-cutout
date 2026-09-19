@@ -22,14 +22,15 @@ internal object StatusBarGoldenScene {
         cellularLevel: Int? = 4,
     ): String {
         val spec = StatusBarStyleRegistry.resolve(style)
+        val resolvedStyle = spec.id
         val networkText = if (spec.networkLabelMode == StatusBarNetworkLabelMode.HIDDEN) {
             "hidden"
         } else {
             PixelStatusBarPresentation.networkTypeLabel(StatusBarNetworkType.FIVE_G)
         }
         val batteryShape = batteryShape(spec.batteryVisualMode, charging)
-        val measuredIos = IosStatusBarIconGeometry.forStyle(style)
-        val measuredAndroid16 = if (style == CustomStatusBarStyle.PIXEL_16_17) {
+        val measuredIos = IosStatusBarIconGeometry.forStyle(resolvedStyle)
+        val measuredAndroid16 = if (resolvedStyle == CustomStatusBarStyle.PIXEL_16_17) {
             Android16StatusBarIconGeometry.pixel1617
         } else {
             null
