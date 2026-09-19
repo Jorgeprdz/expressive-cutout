@@ -63,8 +63,12 @@ internal fun CustomStatusBarScreen(
     val selectedStyleIndex = statusBarStyles.indexOf(settings.style).let { if (it >= 0) it else 0 }
 
     var masterScale by remember(settings.masterScale) { mutableStateOf(settings.masterScale) }
+    var clockX by remember(settings.clockOffsetXDp) { mutableStateOf(settings.clockOffsetXDp) }
+    var clockY by remember(settings.clockOffsetYDp) { mutableStateOf(settings.clockOffsetYDp) }
     var systemScale by remember(settings.systemIconsScale) { mutableStateOf(settings.systemIconsScale) }
     var systemSpacing by remember(settings.systemIconsSpacingDp) { mutableStateOf(settings.systemIconsSpacingDp) }
+    var systemX by remember(settings.systemIconsOffsetXDp) { mutableStateOf(settings.systemIconsOffsetXDp) }
+    var systemY by remember(settings.systemIconsOffsetYDp) { mutableStateOf(settings.systemIconsOffsetYDp) }
     var batteryScale by remember(settings.batteryScale) { mutableStateOf(settings.batteryScale) }
     var globalY by remember(settings.statusBarOffsetYDp) { mutableStateOf(settings.statusBarOffsetYDp) }
 
@@ -89,8 +93,12 @@ internal fun CustomStatusBarScreen(
         PremiumPreviewCard(
             settings = settings.copy(
                 masterScale = masterScale,
+                clockOffsetXDp = clockX,
+                clockOffsetYDp = clockY,
                 systemIconsScale = systemScale,
                 systemIconsSpacingDp = systemSpacing,
+                systemIconsOffsetXDp = systemX,
+                systemIconsOffsetYDp = systemY,
                 batteryScale = batteryScale,
                 statusBarOffsetYDp = globalY,
             ).sanitized(),
@@ -172,6 +180,99 @@ internal fun CustomStatusBarScreen(
             },
         )
 
+        SettingSectionCard(
+            title = "Fine alignment",
+            description = "Move the clock and right-side indicators by a few dp when a wallpaper or density makes them feel too close to the edge.",
+        ) {
+            Text(
+                text = "Clock",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Horizontal",
+                "Move the time left or right.",
+                signedDp(clockX),
+                clockX,
+                -CustomStatusBarSettings.MAX_OFFSET_DP..CustomStatusBarSettings.MAX_OFFSET_DP,
+                1f,
+                { clockX = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(clockOffsetXDp = clockX)) },
+            )
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Vertical",
+                "Move the time up or down.",
+                signedDp(clockY),
+                clockY,
+                -CustomStatusBarSettings.MAX_OFFSET_DP..CustomStatusBarSettings.MAX_OFFSET_DP,
+                1f,
+                { clockY = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(clockOffsetYDp = clockY)) },
+            )
+            Text(
+                text = "Right indicators",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Horizontal",
+                "Move signal, Wi-Fi, network text and battery together.",
+                signedDp(systemX),
+                systemX,
+                -CustomStatusBarSettings.MAX_OFFSET_DP..CustomStatusBarSettings.MAX_OFFSET_DP,
+                1f,
+                { systemX = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(systemIconsOffsetXDp = systemX)) },
+            )
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Vertical",
+                "Fine tune the right-side group height.",
+                signedDp(systemY),
+                systemY,
+                -CustomStatusBarSettings.MAX_OFFSET_DP..CustomStatusBarSettings.MAX_OFFSET_DP,
+                1f,
+                { systemY = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(systemIconsOffsetYDp = systemY)) },
+            )
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Whole bar vertical",
+                "Move the complete custom bar without changing the left/right balance.",
+                signedDp(globalY),
+                globalY,
+                -CustomStatusBarSettings.MAX_GLOBAL_Y_DP..CustomStatusBarSettings.MAX_GLOBAL_Y_DP,
+                1f,
+                { globalY = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(statusBarOffsetYDp = globalY)) },
+            )
+            Button(
+                onClick = {
+                    clockX = 0f
+                    clockY = 0f
+                    systemX = 0f
+                    systemY = 0f
+                    globalY = 0f
+                    viewModel.setCustomStatusBarSettings(
+                        settings.copy(
+                            clockOffsetXDp = 0f,
+                            clockOffsetYDp = 0f,
+                            systemIconsOffsetXDp = 0f,
+                            systemIconsOffsetYDp = 0f,
+                            statusBarOffsetYDp = 0f,
+                        ),
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Center alignment")
+            }
+        }
+
         if (CustomStatusBarStyleUiPolicy.showsIosBatteryColor(settings.style)) {
             SettingSectionCard(
                 title = "Battery color",
@@ -197,8 +298,8 @@ internal fun CustomStatusBarScreen(
         }
 
         SettingSectionCard(
-            title = "Fine tuning",
-            description = "Small adjustments for density, spacing and vertical alignment.",
+            title = "Icon rhythm",
+            description = "Keep the group compact while preserving the current style geometry.",
         ) {
             SettingsSliderCard(
                 RoundedCornerShape(22.dp),
@@ -233,17 +334,6 @@ internal fun CustomStatusBarScreen(
                 { batteryScale = it },
                 { viewModel.setCustomStatusBarSettings(settings.copy(batteryScale = batteryScale)) },
             )
-            SettingsSliderCard(
-                RoundedCornerShape(22.dp),
-                "Vertical position",
-                "Move the full custom bar up or down.",
-                signedDp(globalY),
-                globalY,
-                -CustomStatusBarSettings.MAX_GLOBAL_Y_DP..CustomStatusBarSettings.MAX_GLOBAL_Y_DP,
-                1f,
-                { globalY = it },
-                { viewModel.setCustomStatusBarSettings(settings.copy(statusBarOffsetYDp = globalY)) },
-            )
         }
 
         Button(
@@ -251,8 +341,12 @@ internal fun CustomStatusBarScreen(
                 viewModel.resetCustomStatusBarPixelDefaults()
                 val d = settings.withPixelDefaults()
                 masterScale = d.masterScale
+                clockX = d.clockOffsetXDp
+                clockY = d.clockOffsetYDp
                 systemScale = d.systemIconsScale
                 systemSpacing = d.systemIconsSpacingDp
+                systemX = d.systemIconsOffsetXDp
+                systemY = d.systemIconsOffsetYDp
                 batteryScale = d.batteryScale
                 globalY = d.statusBarOffsetYDp
             },
