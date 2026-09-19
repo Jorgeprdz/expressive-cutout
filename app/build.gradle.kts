@@ -1,7 +1,24 @@
+import java.util.Base64
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+}
+
+val ciDebugKeystoreBase64 = rootProject.file("app/signing/expressive-debug.keystore.b64")
+val ciDebugKeystoreFile = rootProject.layout.buildDirectory
+    .file("ci-signing/expressive-debug.keystore")
+    .get()
+    .asFile
+
+fun ensureCiDebugKeystore() {
+    if (!ciDebugKeystoreBase64.exists()) return
+    val decoded = Base64.getMimeDecoder().decode(ciDebugKeystoreBase64.readText())
+    ciDebugKeystoreFile.parentFile.mkdirs()
+    if (!ciDebugKeystoreFile.exists() || !ciDebugKeystoreFile.readBytes().contentEquals(decoded)) {
+        ciDebugKeystoreFile.writeBytes(decoded)
+    }
 }
 
 android {
@@ -14,6 +31,18 @@ android {
         targetSdk = 35
         versionCode = 4
         versionName = "0.2.0-beta"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            if (ciDebugKeystoreBase64.exists()) {
+                ensureCiDebugKeystore()
+                storeFile = ciDebugKeystoreFile
+                storePassword = "expressive"
+                keyAlias = "expressive-debug"
+                keyPassword = "expressive"
+            }
+        }
     }
 
     buildTypes {
