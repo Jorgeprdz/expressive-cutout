@@ -18,11 +18,14 @@ class Pixel16CompactGeometryTest {
 
         assertEquals(39, wifi.sourceViewBoxWidthPx)
         assertEquals(29, wifi.sourceViewBoxHeightPx)
-        assertEquals("compact-bold-arcs", wifi.visualLanguage)
+        assertEquals("compact-symmetric-arcs", wifi.visualLanguage)
         assertEquals(19f, pixel.wifi.sizeDp, 0.001f)
         assertTrue(wifi.outer.width > wifi.middle.width)
-        assertTrue(wifi.outerStrokeToHeight in 0.15f..0.20f)
-        assertTrue(wifi.dot.width in 0.18f..0.24f)
+        assertTrue(wifi.outerStrokeToHeight in 0.15f..0.17f)
+        assertTrue(wifi.middleStrokeToHeight in 0.15f..0.17f)
+        assertTrue(wifi.outer.x > 0f)
+        assertTrue(wifi.middle.x > wifi.outer.x)
+        assertTrue(wifi.dot.width in 0.18f..0.20f)
     }
 
     @Test
@@ -31,11 +34,12 @@ class Pixel16CompactGeometryTest {
 
         assertEquals(38, signal.sourceViewBoxWidthPx)
         assertEquals(30, signal.sourceViewBoxHeightPx)
-        assertEquals("compact-measured-bars", signal.visualLanguage)
+        assertEquals("compact-weighted-bars", signal.visualLanguage)
         assertEquals(StatusBarSignalVisualMode.PIXEL_COMPACT_BARS, pixel.signalVisualMode)
-        assertEquals(18.5f, pixel.mobile.widthDp, 0.001f)
+        assertEquals(19.5f, pixel.mobile.widthDp, 0.001f)
         assertEquals(14.5f, pixel.mobile.heightDp, 0.001f)
         assertEquals(4, signal.bars.size)
+        assertTrue(signal.bars.all { it.rect.width >= 0.20f })
         assertTrue(signal.bars.zipWithNext().all { (left, right) -> right.rect.height > left.rect.height })
         assertTrue(signal.bars.all { kotlin.math.abs((it.rect.y + it.rect.height) - 1f) < 0.001f })
     }
