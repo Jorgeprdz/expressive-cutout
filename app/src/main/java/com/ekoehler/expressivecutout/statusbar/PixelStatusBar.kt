@@ -380,7 +380,9 @@ internal fun PixelMobileGlyph(
         )
         return
     }
-    if (visualMode == StatusBarSignalVisualMode.DOT_MATRIX) {
+    if (visualMode == StatusBarSignalVisualMode.DOT_MATRIX ||
+        visualMode == StatusBarSignalVisualMode.PIXEL_COMPACT_BARS
+    ) {
         Android16MeasuredSignalGlyph(
             geometry = Android16StatusBarIconGeometry.pixel1617.signal,
             tint = tint,
@@ -461,7 +463,9 @@ internal fun PixelBatteryGlyph(
         )
         return
     }
-    if (visualMode == StatusBarBatteryVisualMode.NUMERIC_CAPSULE_PROMINENT) {
+    if (visualMode == StatusBarBatteryVisualMode.NUMERIC_CAPSULE_PROMINENT ||
+        visualMode == StatusBarBatteryVisualMode.COMPACT_SOLID_DYNAMIC
+    ) {
         Android16MeasuredBatteryGlyph(
             geometry = Android16StatusBarIconGeometry.pixel1617.battery,
             level = level,
@@ -471,6 +475,7 @@ internal fun PixelBatteryGlyph(
             heightDp = glyphProfile.heightDp,
             scale = safeScale,
             modifier = modifier,
+            showText = visualMode == StatusBarBatteryVisualMode.NUMERIC_CAPSULE_PROMINENT,
         )
         return
     }
