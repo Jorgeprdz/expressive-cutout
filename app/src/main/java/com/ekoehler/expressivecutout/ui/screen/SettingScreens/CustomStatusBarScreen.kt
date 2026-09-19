@@ -2,7 +2,6 @@ package com.ekoehler.expressivecutout.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,11 +34,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ekoehler.expressivecutout.R
-import com.ekoehler.expressivecutout.data.BatteryPercentageMode
 import com.ekoehler.expressivecutout.data.CustomStatusBarAppearancePreference
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
+import com.ekoehler.expressivecutout.data.CustomStatusBarStyle
+import com.ekoehler.expressivecutout.data.CustomStatusBarStyleUiPolicy
 import com.ekoehler.expressivecutout.data.IosBatteryColorMode
-import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 import com.ekoehler.expressivecutout.statusbar.CustomStatusBarPreviewState
 import com.ekoehler.expressivecutout.statusbar.IslandOccupancy
 import com.ekoehler.expressivecutout.statusbar.PixelStatusBarLayer
@@ -47,7 +46,6 @@ import com.ekoehler.expressivecutout.statusbar.StatusBarForeground
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutEngine
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutInput
 import com.ekoehler.expressivecutout.statusbar.StatusBarRect
-import com.ekoehler.expressivecutout.statusbar.StatusBarStyleRegistry
 import com.ekoehler.expressivecutout.ui.AppViewModel
 import com.ekoehler.expressivecutout.ui.components.ExpressiveSegmentedRow
 import kotlin.math.roundToInt
@@ -57,21 +55,15 @@ internal fun CustomStatusBarScreen(
     viewModel: AppViewModel,
     contentPadding: PaddingValues,
 ) {
-    val settings by viewModel.customStatusBarSettings.collectAsStateWithLifecycle()
+    val rawSettings by viewModel.customStatusBarSettings.collectAsStateWithLifecycle()
+    val settings = rawSettings.sanitized()
     var previewForeground by rememberSaveable { mutableIntStateOf(0) }
-    val statusBarStyles = remember { StatusBarStyleRegistry.allStyles }
-    val selectedStyleIndex = statusBarStyles.indexOfFirst { it.id == settings.style }
-        .let { if (it >= 0) it else 0 }
+    val statusBarStyles = remember { CustomStatusBarStyleUiPolicy.visibleStyles }
+    val selectedStyleIndex = statusBarStyles.indexOf(settings.style).let { if (it >= 0) it else 0 }
 
     var masterScale by remember(settings.masterScale) { mutableStateOf(settings.masterScale) }
-    var clockScale by remember(settings.clockScale) { mutableStateOf(settings.clockScale) }
-    var clockX by remember(settings.clockOffsetXDp) { mutableStateOf(settings.clockOffsetXDp) }
-    var clockY by remember(settings.clockOffsetYDp) { mutableStateOf(settings.clockOffsetYDp) }
     var systemScale by remember(settings.systemIconsScale) { mutableStateOf(settings.systemIconsScale) }
-    var wifiScale by remember(settings.wifiScale) { mutableStateOf(settings.wifiScale) }
     var systemSpacing by remember(settings.systemIconsSpacingDp) { mutableStateOf(settings.systemIconsSpacingDp) }
-    var systemX by remember(settings.systemIconsOffsetXDp) { mutableStateOf(settings.systemIconsOffsetXDp) }
-    var systemY by remember(settings.systemIconsOffsetYDp) { mutableStateOf(settings.systemIconsOffsetYDp) }
     var batteryScale by remember(settings.batteryScale) { mutableStateOf(settings.batteryScale) }
     var globalY by remember(settings.statusBarOffsetYDp) { mutableStateOf(settings.statusBarOffsetYDp) }
 
@@ -79,20 +71,25 @@ internal fun CustomStatusBarScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(contentPadding),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(contentPadding)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        PixelStatusBarPreview(
+        Text(
+            text = "Custom status bar",
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(
+            text = "Choose a polished status bar style and keep only the controls that matter.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        PremiumPreviewCard(
             settings = settings.copy(
                 masterScale = masterScale,
-                clockScale = clockScale,
-                clockOffsetXDp = clockX,
-                clockOffsetYDp = clockY,
                 systemIconsScale = systemScale,
-                wifiScale = wifiScale,
                 systemIconsSpacingDp = systemSpacing,
-                systemIconsOffsetXDp = systemX,
-                systemIconsOffsetYDp = systemY,
                 batteryScale = batteryScale,
                 statusBarOffsetYDp = globalY,
             ).sanitized(),
@@ -109,77 +106,61 @@ internal fun CustomStatusBarScreen(
         )
 
         SettingsToggleCard(
-            shape = RoundedCornerShape(24.dp),
-            title = stringResource(R.string.custom_status_bar_title),
-            description = stringResource(R.string.custom_status_bar_desc),
+            shape = RoundedCornerShape(28.dp),
+            title = "Enable custom status bar",
+            description = "Draw the selected status bar above SystemUI while preserving the island area.",
             checked = settings.enabled,
             onCheckedChange = viewModel::setCustomStatusBarEnabled,
         )
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        SettingSectionCard(
+            title = "Style",
+            description = "Two focused options replace the experimental style pack.",
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    stringResource(R.string.custom_status_bar_style_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                ExpressiveSegmentedRow(
-                    options = statusBarStyles.map { it.displayName },
-                    selectedIndex = selectedStyleIndex,
-                    onSelect = { index ->
-                        viewModel.setCustomStatusBarSettings(
-                            settings.copy(
-                                style = statusBarStyles.getOrNull(index)?.id
-                                    ?: StatusBarStyleRegistry.defaultStyle.id,
-                            ),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    stringResource(R.string.custom_status_bar_appearance_title),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                ExpressiveSegmentedRow(
-                    options = listOf(
-                        stringResource(R.string.custom_status_bar_auto),
-                        stringResource(R.string.custom_status_bar_light),
-                        stringResource(R.string.custom_status_bar_dark),
-                    ),
-                    selectedIndex = when (settings.appearance) {
-                        CustomStatusBarAppearancePreference.AUTO -> 0
-                        CustomStatusBarAppearancePreference.LIGHT -> 1
-                        CustomStatusBarAppearancePreference.DARK -> 2
-                    },
-                    onSelect = { index ->
-                        viewModel.setCustomStatusBarAppearance(
-                            when (index) {
-                                1 -> CustomStatusBarAppearancePreference.LIGHT
-                                2 -> CustomStatusBarAppearancePreference.DARK
-                                else -> CustomStatusBarAppearancePreference.AUTO
-                            },
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    text = stringResource(R.string.custom_status_bar_auto_known_issue),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            ExpressiveSegmentedRow(
+                options = statusBarStyles.map(CustomStatusBarStyleUiPolicy::displayName),
+                selectedIndex = selectedStyleIndex,
+                onSelect = { index ->
+                    val nextStyle = statusBarStyles.getOrNull(index) ?: CustomStatusBarStyle.IOS_27
+                    viewModel.setCustomStatusBarSettings(settings.copy(style = nextStyle))
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = CustomStatusBarStyleUiPolicy.description(settings.style),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        SettingSectionCard(
+            title = "Icon appearance",
+            description = "Auto follows the real foreground app appearance; Light and Dark are manual overrides.",
+        ) {
+            ExpressiveSegmentedRow(
+                options = listOf("Auto", "Light", "Dark"),
+                selectedIndex = when (settings.appearance) {
+                    CustomStatusBarAppearancePreference.AUTO -> 0
+                    CustomStatusBarAppearancePreference.LIGHT -> 1
+                    CustomStatusBarAppearancePreference.DARK -> 2
+                },
+                onSelect = { index ->
+                    viewModel.setCustomStatusBarAppearance(
+                        when (index) {
+                            1 -> CustomStatusBarAppearancePreference.LIGHT
+                            2 -> CustomStatusBarAppearancePreference.DARK
+                            else -> CustomStatusBarAppearancePreference.AUTO
+                        },
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         SettingsSliderCard(
-            shape = RoundedCornerShape(24.dp),
-            title = stringResource(R.string.custom_status_bar_master_scale),
-            description = stringResource(R.string.custom_status_bar_master_scale_desc),
+            shape = RoundedCornerShape(28.dp),
+            title = "Master scale",
+            description = "Resize the whole custom bar without changing individual geometry.",
             valueText = "${(masterScale * 100).roundToInt()}%",
             value = masterScale,
             valueRange = CustomStatusBarSettings.MIN_MASTER_SCALE..CustomStatusBarSettings.MAX_MASTER_SCALE,
@@ -190,203 +171,11 @@ internal fun CustomStatusBarScreen(
             },
         )
 
-        SectionTitle(stringResource(R.string.custom_status_bar_clock_section))
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_scale),
-            stringResource(R.string.custom_status_bar_clock_scale_desc),
-            "${(clockScale * 100).roundToInt()}%",
-            clockScale,
-            CustomStatusBarSettings.MIN_COMPONENT_SCALE..CustomStatusBarSettings.MAX_COMPONENT_SCALE,
-            0.05f,
-            { clockScale = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(clockScale = clockScale)) },
-        )
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_horizontal_offset),
-            stringResource(R.string.custom_status_bar_clock_x_desc),
-            signedDp(clockX),
-            clockX,
-            -CustomStatusBarSettings.MAX_OFFSET_DP..CustomStatusBarSettings.MAX_OFFSET_DP,
-            1f,
-            { clockX = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(clockOffsetXDp = clockX)) },
-        )
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_vertical_offset),
-            stringResource(R.string.custom_status_bar_clock_y_desc),
-            signedDp(clockY),
-            clockY,
-            -CustomStatusBarSettings.MAX_OFFSET_DP..CustomStatusBarSettings.MAX_OFFSET_DP,
-            1f,
-            { clockY = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(clockOffsetYDp = clockY)) },
-        )
-
-        SectionTitle(stringResource(R.string.custom_status_bar_system_section))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+        if (CustomStatusBarStyleUiPolicy.showsIosBatteryColor(settings.style)) {
+            SettingSectionCard(
+                title = "Battery color",
+                description = "Black keeps iOS monochrome. Status turns under 20% yellow and under 10% red.",
             ) {
-                Text(
-                    stringResource(R.string.custom_status_bar_mobile_bar_style),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    stringResource(R.string.custom_status_bar_mobile_bar_style_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                ExpressiveSegmentedRow(
-                    options = listOf(
-                        stringResource(R.string.custom_status_bar_mobile_bar_classic),
-                        stringResource(R.string.custom_status_bar_mobile_bar_compact),
-                        stringResource(R.string.custom_status_bar_mobile_bar_tall),
-                    ),
-                    selectedIndex = when (settings.mobileBarStyle) {
-                        PixelMobileBarStyle.CLASSIC -> 0
-                        PixelMobileBarStyle.COMPACT -> 1
-                        PixelMobileBarStyle.TALL -> 2
-                    },
-                    onSelect = { index ->
-                        viewModel.setCustomStatusBarSettings(
-                            settings.copy(
-                                mobileBarStyle = when (index) {
-                                    1 -> PixelMobileBarStyle.COMPACT
-                                    2 -> PixelMobileBarStyle.TALL
-                                    else -> PixelMobileBarStyle.CLASSIC
-                                },
-                            ),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_scale),
-            stringResource(R.string.custom_status_bar_system_scale_desc),
-            "${(systemScale * 100).roundToInt()}%",
-            systemScale,
-            CustomStatusBarSettings.MIN_COMPONENT_SCALE..CustomStatusBarSettings.MAX_COMPONENT_SCALE,
-            0.05f,
-            { systemScale = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(systemIconsScale = systemScale)) },
-        )
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_wifi_scale),
-            stringResource(R.string.custom_status_bar_wifi_scale_desc),
-            "${(wifiScale * 100).roundToInt()}%",
-            wifiScale,
-            CustomStatusBarSettings.MIN_COMPONENT_SCALE..CustomStatusBarSettings.MAX_COMPONENT_SCALE,
-            0.05f,
-            { wifiScale = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(wifiScale = wifiScale)) },
-        )
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_spacing),
-            stringResource(R.string.custom_status_bar_spacing_desc),
-            "${systemSpacing.roundToInt()} dp",
-            systemSpacing,
-            CustomStatusBarSettings.MIN_SPACING_DP..CustomStatusBarSettings.MAX_SPACING_DP,
-            1f,
-            { systemSpacing = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(systemIconsSpacingDp = systemSpacing)) },
-        )
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_horizontal_offset),
-            stringResource(R.string.custom_status_bar_system_x_desc),
-            signedDp(systemX),
-            systemX,
-            -CustomStatusBarSettings.MAX_OFFSET_DP..CustomStatusBarSettings.MAX_OFFSET_DP,
-            1f,
-            { systemX = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(systemIconsOffsetXDp = systemX)) },
-        )
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_vertical_offset),
-            stringResource(R.string.custom_status_bar_system_y_desc),
-            signedDp(systemY),
-            systemY,
-            -CustomStatusBarSettings.MAX_OFFSET_DP..CustomStatusBarSettings.MAX_OFFSET_DP,
-            1f,
-            { systemY = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(systemIconsOffsetYDp = systemY)) },
-        )
-
-        SectionTitle(stringResource(R.string.custom_status_bar_battery_section))
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_scale),
-            stringResource(R.string.custom_status_bar_battery_scale_desc),
-            "${(batteryScale * 100).roundToInt()}%",
-            batteryScale,
-            CustomStatusBarSettings.MIN_COMPONENT_SCALE..CustomStatusBarSettings.MAX_COMPONENT_SCALE,
-            0.05f,
-            { batteryScale = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(batteryScale = batteryScale)) },
-        )
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    stringResource(R.string.custom_status_bar_battery_percentage),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                ExpressiveSegmentedRow(
-                    options = listOf(
-                        stringResource(R.string.custom_status_bar_percentage_off),
-                        stringResource(R.string.custom_status_bar_percentage_outside),
-                    ),
-                    selectedIndex = if (settings.batteryPercentageMode == BatteryPercentageMode.OUTSIDE) 1 else 0,
-                    onSelect = { index ->
-                        viewModel.setCustomStatusBarSettings(
-                            settings.copy(
-                                batteryPercentageMode =
-                                    if (index == 1) BatteryPercentageMode.OUTSIDE else BatteryPercentageMode.OFF,
-                            ),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    text = "iOS battery color",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = "Black keeps iOS monochrome. Status makes <20% yellow and <10% red.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 ExpressiveSegmentedRow(
                     options = listOf("Black", "Status"),
                     selectedIndex = if (settings.iosBatteryColorMode == IosBatteryColorMode.STATUS_COLOR) 1 else 0,
@@ -406,32 +195,63 @@ internal fun CustomStatusBarScreen(
             }
         }
 
-        SectionTitle(stringResource(R.string.custom_status_bar_position_section))
-        SettingsSliderCard(
-            RoundedCornerShape(24.dp),
-            stringResource(R.string.custom_status_bar_global_y),
-            stringResource(R.string.custom_status_bar_global_y_desc),
-            signedDp(globalY),
-            globalY,
-            -CustomStatusBarSettings.MAX_GLOBAL_Y_DP..CustomStatusBarSettings.MAX_GLOBAL_Y_DP,
-            1f,
-            { globalY = it },
-            { viewModel.setCustomStatusBarSettings(settings.copy(statusBarOffsetYDp = globalY)) },
-        )
+        SettingSectionCard(
+            title = "Fine tuning",
+            description = "Small adjustments for density, spacing and vertical alignment.",
+        ) {
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Icon scale",
+                "Resize signal, Wi-Fi and network indicators together.",
+                "${(systemScale * 100).roundToInt()}%",
+                systemScale,
+                CustomStatusBarSettings.MIN_COMPONENT_SCALE..CustomStatusBarSettings.MAX_COMPONENT_SCALE,
+                0.05f,
+                { systemScale = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(systemIconsScale = systemScale)) },
+            )
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Spacing",
+                "Adjust the right-side icon rhythm.",
+                "${systemSpacing.roundToInt()} dp",
+                systemSpacing,
+                CustomStatusBarSettings.MIN_SPACING_DP..CustomStatusBarSettings.MAX_SPACING_DP,
+                1f,
+                { systemSpacing = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(systemIconsSpacingDp = systemSpacing)) },
+            )
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Battery scale",
+                "Resize only the battery glyph.",
+                "${(batteryScale * 100).roundToInt()}%",
+                batteryScale,
+                CustomStatusBarSettings.MIN_COMPONENT_SCALE..CustomStatusBarSettings.MAX_COMPONENT_SCALE,
+                0.05f,
+                { batteryScale = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(batteryScale = batteryScale)) },
+            )
+            SettingsSliderCard(
+                RoundedCornerShape(22.dp),
+                "Vertical position",
+                "Move the full custom bar up or down.",
+                signedDp(globalY),
+                globalY,
+                -CustomStatusBarSettings.MAX_GLOBAL_Y_DP..CustomStatusBarSettings.MAX_GLOBAL_Y_DP,
+                1f,
+                { globalY = it },
+                { viewModel.setCustomStatusBarSettings(settings.copy(statusBarOffsetYDp = globalY)) },
+            )
+        }
 
         Button(
             onClick = {
                 viewModel.resetCustomStatusBarPixelDefaults()
                 val d = settings.withPixelDefaults()
                 masterScale = d.masterScale
-                clockScale = d.clockScale
-                clockX = d.clockOffsetXDp
-                clockY = d.clockOffsetYDp
                 systemScale = d.systemIconsScale
-                wifiScale = d.wifiScale
                 systemSpacing = d.systemIconsSpacingDp
-                systemX = d.systemIconsOffsetXDp
-                systemY = d.systemIconsOffsetYDp
                 batteryScale = d.batteryScale
                 globalY = d.statusBarOffsetYDp
             },
@@ -447,63 +267,99 @@ internal fun CustomStatusBarScreen(
 }
 
 @Composable
-private fun PixelStatusBarPreview(
+private fun PremiumPreviewCard(
     settings: CustomStatusBarSettings,
     lightForeground: Boolean,
 ) {
     val foreground = if (lightForeground) StatusBarForeground.LIGHT else StatusBarForeground.DARK
-    val background = if (lightForeground) Color(0xFF151515) else Color(0xFFF3F4F7)
-    val previewState = remember { CustomStatusBarPreviewState.create() }
+    val background = if (lightForeground) Color(0xFF111317) else Color(0xFFF5F7FA)
+    val previewState = remember(settings.style) { CustomStatusBarPreviewState.create() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(32.dp),
         colors = CardDefaults.cardColors(containerColor = background),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .background(background),
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            val density = LocalDensity.current
-            val widthPx = with(density) { maxWidth.roundToPx() }
-            val heightPx = with(density) { 60.dp.roundToPx() }
-            val exclusionWidth = with(density) { 110.dp.roundToPx() }
-            val center = widthPx / 2
-            val layout = StatusBarLayoutEngine.calculate(
-                StatusBarLayoutInput(
-                    displayBounds = StatusBarRect(0, 0, widthPx, heightPx),
-                    statusBarBounds = StatusBarRect(0, 0, widthPx, heightPx),
-                    occupancy = IslandOccupancy(
-                        collapsedIslandBounds = StatusBarRect(
-                            center - exclusionWidth / 2,
-                            0,
-                            center + exclusionWidth / 2,
-                            heightPx,
+            Text(
+                text = "Preview",
+                style = MaterialTheme.typography.titleMedium,
+                color = if (lightForeground) Color.White else Color(0xFF14171C),
+            )
+            Text(
+                text = CustomStatusBarStyleUiPolicy.displayName(settings.style),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (lightForeground) Color(0xFFB7C0CC) else Color(0xFF667085),
+            )
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .background(background, RoundedCornerShape(22.dp)),
+            ) {
+                val density = LocalDensity.current
+                val widthPx = with(density) { maxWidth.roundToPx() }
+                val heightPx = with(density) { 56.dp.roundToPx() }
+                val exclusionWidth = with(density) { 112.dp.roundToPx() }
+                val center = widthPx / 2
+                val layout = StatusBarLayoutEngine.calculate(
+                    StatusBarLayoutInput(
+                        displayBounds = StatusBarRect(0, 0, widthPx, heightPx),
+                        statusBarBounds = StatusBarRect(0, 0, widthPx, heightPx),
+                        occupancy = IslandOccupancy(
+                            collapsedIslandBounds = StatusBarRect(
+                                center - exclusionWidth / 2,
+                                0,
+                                center + exclusionWidth / 2,
+                                heightPx,
+                            ),
                         ),
                     ),
-                ),
-            )
-            PixelStatusBarLayer(
-                state = previewState,
-                leftForeground = foreground,
-                rightForeground = foreground,
-                layout = layout,
-                settings = settings,
-                modifier = Modifier.fillMaxSize(),
-            )
+                )
+                PixelStatusBarLayer(
+                    state = previewState,
+                    leftForeground = foreground,
+                    rightForeground = foreground,
+                    layout = layout,
+                    settings = settings,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(top = 6.dp, start = 4.dp),
-    )
+private fun SettingSectionCard(
+    title: String,
+    description: String,
+    content: @Composable Column.() -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            content()
+        }
+    }
 }
 
 private fun signedDp(value: Float): String {
