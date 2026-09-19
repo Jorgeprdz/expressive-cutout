@@ -22,6 +22,12 @@ class CustomStatusBarSettingsTest {
     }
 
     @Test
+    fun `fine alignment range gives the clock more horizontal room`() {
+        assertEquals(48f, CustomStatusBarSettings.MAX_OFFSET_DP)
+        assertEquals(0f, CustomStatusBarSettings.DEFAULT.clockOffsetXDp)
+    }
+
+    @Test
     fun `sanitized settings clamp every tunable range`() {
         val s = CustomStatusBarSettings(
             style = CustomStatusBarStyle.HYPER_OS,
