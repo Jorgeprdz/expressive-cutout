@@ -63,6 +63,7 @@ internal object StatusBarGoldenScene {
                         wifiLevel = wifiLevel,
                         cellularLevel = cellularLevel,
                     ).forEach { appendLine(it) }
+                    appendLine("batteryText=hidden shape=$batteryShape")
                 }
                 else -> {
                     appendLine(
@@ -104,6 +105,7 @@ internal object StatusBarGoldenScene {
         StatusBarSignalVisualMode.IOS_BOLD_PILLS -> "bold-pill-bars"
         StatusBarSignalVisualMode.DOT_MATRIX -> "active-dot-matrix"
         StatusBarSignalVisualMode.COMPACT_MINIMAL_BARS -> "minimal-monochrome-bars"
+        StatusBarSignalVisualMode.PIXEL_COMPACT_BARS -> "compact-measured-bars"
     }
 
     private fun wifiStroke(mode: StatusBarWifiVisualMode): String = when (mode) {
@@ -123,6 +125,7 @@ internal object StatusBarGoldenScene {
             if (charging) "green-number-pill-bolt" else "large-number-pill"
         StatusBarBatteryVisualMode.NUMERIC_CAPSULE_COMPACT -> "compact-number-pill"
         StatusBarBatteryVisualMode.SOLID_CAPSULE_MINIMAL -> "minimal-solid-pill"
+        StatusBarBatteryVisualMode.COMPACT_SOLID_DYNAMIC -> "compact-solid-dynamic"
     }
 
     private fun fmt(value: Float): String = String.format(Locale.US, "%.2f", value)
