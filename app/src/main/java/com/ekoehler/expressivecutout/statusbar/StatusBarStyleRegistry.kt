@@ -2,6 +2,7 @@ package com.ekoehler.expressivecutout.statusbar
 
 import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
 import com.ekoehler.expressivecutout.data.CustomStatusBarStyle
+import com.ekoehler.expressivecutout.data.CustomStatusBarStyleUiPolicy
 import com.ekoehler.expressivecutout.data.PixelMobileBarStyle
 
 internal typealias StatusBarStyleId = CustomStatusBarStyle
@@ -195,68 +196,6 @@ internal object StatusBarStyleRegistry {
         fillCornerHeightFraction = 0.15f,
     )
 
-    private val default = StatusBarStyle(
-        id = CustomStatusBarStyle.DEFAULT,
-        displayName = "Default / One UI",
-        visualSignatureKey = "one-ui-default",
-        clock = StatusBarClockStyle(76f, 24f, 14f, StatusBarStyleTextWeight.MEDIUM),
-        mobile = defaultMobile,
-        wifi = defaultWifi,
-        battery = defaultBattery,
-        signalVisualMode = StatusBarSignalVisualMode.CLASSIC_BARS,
-        wifiVisualMode = StatusBarWifiVisualMode.CLASSIC_ARCS,
-        batteryVisualMode = StatusBarBatteryVisualMode.CLASSIC_ANDROID,
-        networkLabelMode = StatusBarNetworkLabelMode.DISCREET,
-        rightGroupHeightDp = 24f,
-        edgeInsetDp = 8f,
-        spacingMultiplier = 1f,
-        networkTypeFontSizeSp = 9.25f,
-        networkTypeWeight = StatusBarStyleTextWeight.MEDIUM,
-    )
-
-    private val ios26 = StatusBarStyle(
-        id = CustomStatusBarStyle.IOS_26,
-        displayName = "iOS 26",
-        visualSignatureKey = "ios26-outline",
-        clock = StatusBarClockStyle(78f, 24f, 14.2f, StatusBarStyleTextWeight.MEDIUM),
-        mobile = defaultMobile.copy(
-            widthDp = 15.8f,
-            leftFraction = 0.12f,
-            bottomFraction = 0.88f,
-            availableWidthFraction = 0.76f,
-            gapFraction = 0.090f,
-            heightFractions = listOf(0.24f, 0.42f, 0.60f, 0.78f),
-            cornerFraction = 0.62f,
-            userBarStyleFallback = PixelMobileBarStyle.CLASSIC,
-        ),
-        wifi = defaultWifi.copy(
-            sizeDp = 15.7f,
-            centerYFraction = 0.72f,
-            radiiFractions = listOf(0.17f, 0.31f, 0.45f),
-            strokeFraction = 0.083f,
-            startAngle = 222f,
-            sweepAngle = 96f,
-            dotRadiusFraction = 0.086f,
-        ),
-        battery = defaultBattery.copy(
-            widthDp = 22.2f,
-            heightDp = 11.6f,
-            outlineStrokeFraction = 0.088f,
-            bodyCornerFraction = 0.30f,
-            terminalAlpha = 0.55f,
-            fillCornerHeightFraction = 0.17f,
-        ),
-        signalVisualMode = StatusBarSignalVisualMode.IOS_ROUNDED_BARS,
-        wifiVisualMode = StatusBarWifiVisualMode.IOS_ARCS,
-        batteryVisualMode = StatusBarBatteryVisualMode.IOS_OUTLINE_FILL,
-        networkLabelMode = StatusBarNetworkLabelMode.DISCREET,
-        rightGroupHeightDp = 24f,
-        edgeInsetDp = 8f,
-        spacingMultiplier = 1.05f,
-        networkTypeFontSizeSp = 9.2f,
-        networkTypeWeight = StatusBarStyleTextWeight.MEDIUM,
-    )
-
     private val ios27 = StatusBarStyle(
         id = CustomStatusBarStyle.IOS_27,
         displayName = "iOS 27",
@@ -307,45 +246,10 @@ internal object StatusBarStyleRegistry {
         batteryPercentageWeight = StatusBarStyleTextWeight.SEMIBOLD,
     )
 
-    private val pixel15 = StatusBarStyle(
-        id = CustomStatusBarStyle.PIXEL_15,
-        displayName = "Pixel 15",
-        visualSignatureKey = "pixel15-classic",
-        clock = StatusBarClockStyle(74f, 24f, 14f, StatusBarStyleTextWeight.MEDIUM),
-        mobile = defaultMobile.copy(
-            widthDp = 13.8f,
-            leftFraction = 0.08f,
-            availableWidthFraction = 0.84f,
-            gapFraction = 0.048f,
-            heightFractions = listOf(0.23f, 0.39f, 0.56f, 0.72f),
-            cornerFraction = 0.44f,
-            userBarStyleFallback = PixelMobileBarStyle.COMPACT,
-        ),
-        wifi = defaultWifi.copy(
-            strokeFraction = 0.078f,
-            dotRadiusFraction = 0.078f,
-        ),
-        battery = defaultBattery.copy(
-            widthDp = 21f,
-            heightDp = 11.2f,
-            bodyCornerFraction = 0.22f,
-        ),
-        signalVisualMode = StatusBarSignalVisualMode.CLASSIC_BARS,
-        wifiVisualMode = StatusBarWifiVisualMode.CLASSIC_ARCS,
-        batteryVisualMode = StatusBarBatteryVisualMode.CLASSIC_ANDROID,
-        networkLabelMode = StatusBarNetworkLabelMode.DISCREET,
-        rightGroupHeightDp = 24f,
-        edgeInsetDp = 8f,
-        spacingMultiplier = 0.92f,
-        networkTypeFontSizeSp = 9f,
-        networkTypeWeight = StatusBarStyleTextWeight.MEDIUM,
-        networkTypeWidthScale = 0.96f,
-    )
-
-    private val pixel1617 = StatusBarStyle(
+    private val pixel16 = StatusBarStyle(
         id = CustomStatusBarStyle.PIXEL_16_17,
-        displayName = "Pixel 16/17",
-        visualSignatureKey = "pixel1617-data-rich",
+        displayName = "Pixel 16",
+        visualSignatureKey = "pixel16-data-rich",
         clock = StatusBarClockStyle(76f, 24f, 14.2f, StatusBarStyleTextWeight.SEMIBOLD),
         mobile = defaultMobile.copy(
             widthDp = 15.6f,
@@ -395,134 +299,24 @@ internal object StatusBarStyleRegistry {
         batteryPercentageWeight = StatusBarStyleTextWeight.SEMIBOLD,
     )
 
-    private val hyperOs = StatusBarStyle(
-        id = CustomStatusBarStyle.HYPER_OS,
-        displayName = "HyperOS",
-        visualSignatureKey = "hyperos-balanced-numeric",
-        clock = StatusBarClockStyle(70f, 23f, 13.5f, StatusBarStyleTextWeight.REGULAR),
-        mobile = defaultMobile.copy(
-            widthDp = 13.2f,
-            leftFraction = 0.10f,
-            bottomFraction = 0.86f,
-            availableWidthFraction = 0.82f,
-            gapFraction = 0.040f,
-            heightFractions = listOf(0.22f, 0.38f, 0.54f, 0.70f),
-            cornerFraction = 0.32f,
-            inactiveAlpha = 0.18f,
-            userBarStyleFallback = PixelMobileBarStyle.COMPACT,
-        ),
-        wifi = defaultWifi.copy(
-            sizeDp = 14.2f,
-            centerYFraction = 0.71f,
-            strokeFraction = 0.070f,
-            startAngle = 222f,
-            sweepAngle = 96f,
-            inactiveAlpha = 0.18f,
-        ),
-        battery = defaultBattery.copy(
-            widthDp = 24.5f,
-            heightDp = 11.0f,
-            outlineStrokeFraction = 0.0f,
-            bodyWidthFraction = 0.90f,
-            bodyCornerFraction = 0.22f,
-            terminalWidthFraction = 0.048f,
-            terminalAlpha = 0.78f,
-            fillInsetStrokeMultiplier = 0f,
-            fillInsetHeightFraction = 0f,
-            fillCornerHeightFraction = 0.20f,
-        ),
-        signalVisualMode = StatusBarSignalVisualMode.CLASSIC_BARS,
-        wifiVisualMode = StatusBarWifiVisualMode.HYPER_COMPACT_ARCS,
-        batteryVisualMode = StatusBarBatteryVisualMode.NUMERIC_CAPSULE_COMPACT,
-        networkLabelMode = StatusBarNetworkLabelMode.DISCREET,
-        rightGroupHeightDp = 23f,
-        edgeInsetDp = 7f,
-        spacingMultiplier = 0.75f,
-        networkTypeFontSizeSp = 8.8f,
-        networkTypeWeight = StatusBarStyleTextWeight.REGULAR,
-        networkTypeWidthScale = 0.90f,
-        batteryPercentageFontSizeSp = 8.8f,
-        batteryPercentageWeight = StatusBarStyleTextWeight.REGULAR,
-    )
+    val allStyles: List<StatusBarStyle> = listOf(ios27, pixel16)
 
-    private val nothingOs5 = StatusBarStyle(
-        id = CustomStatusBarStyle.NOTHING_OS_5,
-        displayName = "Nothing OS 5",
-        visualSignatureKey = "nothingos5-minimal",
-        clock = StatusBarClockStyle(72f, 24f, 13.8f, StatusBarStyleTextWeight.MEDIUM),
-        mobile = defaultMobile.copy(
-            widthDp = 14.4f,
-            leftFraction = 0.09f,
-            bottomFraction = 0.84f,
-            availableWidthFraction = 0.82f,
-            gapFraction = 0.070f,
-            heightFractions = listOf(0.42f, 0.52f, 0.62f, 0.72f),
-            cornerFraction = 0.22f,
-            inactiveAlpha = 0.16f,
-            userBarStyleFallback = PixelMobileBarStyle.COMPACT,
-        ),
-        wifi = defaultWifi.copy(
-            sizeDp = 14.8f,
-            centerYFraction = 0.72f,
-            radiiFractions = listOf(0.15f, 0.30f, 0.45f),
-            strokeFraction = 0.064f,
-            startAngle = 226f,
-            sweepAngle = 88f,
-            dotRadiusFraction = 0.070f,
-            inactiveAlpha = 0.15f,
-        ),
-        battery = defaultBattery.copy(
-            widthDp = 21.2f,
-            heightDp = 10.8f,
-            outlineStrokeFraction = 0.0f,
-            bodyCornerFraction = 0.44f,
-            bodyWidthFraction = 0.90f,
-            terminalWidthFraction = 0.050f,
-            terminalAlpha = 0.72f,
-            fillInsetStrokeMultiplier = 0f,
-            fillInsetHeightFraction = 0f,
-            fillCornerHeightFraction = 0.42f,
-            chargingBolt = false,
-        ),
-        signalVisualMode = StatusBarSignalVisualMode.COMPACT_MINIMAL_BARS,
-        wifiVisualMode = StatusBarWifiVisualMode.NOTHING_MINIMAL_ARCS,
-        batteryVisualMode = StatusBarBatteryVisualMode.SOLID_CAPSULE_MINIMAL,
-        networkLabelMode = StatusBarNetworkLabelMode.HIDDEN,
-        rightGroupHeightDp = 24f,
-        edgeInsetDp = 8f,
-        spacingMultiplier = 0.85f,
-        networkTypeFontSizeSp = 8.9f,
-        networkTypeWeight = StatusBarStyleTextWeight.MEDIUM,
-        networkTypeWidthScale = 0.92f,
-        batteryPercentageFontSizeSp = 8.9f,
-        batteryPercentageWeight = StatusBarStyleTextWeight.MEDIUM,
-    )
-
-    val allStyles: List<StatusBarStyle> = listOf(
-        default,
-        ios26,
-        ios27,
-        pixel15,
-        pixel1617,
-        hyperOs,
-        nothingOs5,
-    )
-
-    val defaultStyle: StatusBarStyle = default
+    val defaultStyle: StatusBarStyle = ios27
 
     private val byId: Map<StatusBarStyleId, StatusBarStyle> = allStyles.associateBy { it.id }
     private val renderers: Map<StatusBarStyleId, StatusBarStyleRenderer> =
         allStyles.associate { it.id to DeclarativeStatusBarStyleRenderer(it) }
 
-    val defaultRenderer: StatusBarStyleRenderer = renderers.getValue(default.id)
+    val defaultRenderer: StatusBarStyleRenderer = renderers.getValue(defaultStyle.id)
 
-    fun resolve(id: StatusBarStyleId?): StatusBarStyle = byId[id] ?: defaultStyle
+    fun resolve(id: StatusBarStyleId?): StatusBarStyle =
+        byId[CustomStatusBarStyleUiPolicy.migrateLegacy(id ?: defaultStyle.id)] ?: defaultStyle
 
     fun resolvePersisted(raw: String?): StatusBarStyleId =
         resolve(CustomStatusBarStyle.fromPersisted(raw)).id
 
     fun rendererFor(id: StatusBarStyleId?): StatusBarStyleRenderer =
-        renderers[id] ?: defaultRenderer
+        renderers[CustomStatusBarStyleUiPolicy.migrateLegacy(id ?: defaultStyle.id)] ?: defaultRenderer
 }
 
 internal val StatusBarBatteryVisualMode.usesInternalPercentage: Boolean
