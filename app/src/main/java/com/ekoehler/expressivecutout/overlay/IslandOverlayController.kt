@@ -46,6 +46,7 @@ import com.ekoehler.expressivecutout.core.CutoutSignal
 import com.ekoehler.expressivecutout.core.DynamicTile
 import com.ekoehler.expressivecutout.core.IslandEventBus
 import com.ekoehler.expressivecutout.core.IslandPreviewBus
+import com.ekoehler.expressivecutout.core.MediaArtBus
 import com.ekoehler.expressivecutout.core.PermissionDotPreviewBus
 import com.ekoehler.expressivecutout.core.ForegroundAppBus
 import com.ekoehler.expressivecutout.core.NowPlayingBus
@@ -503,6 +504,10 @@ internal class IslandOverlayController(
         projectedLiveSatellite = null
         liveEventCache.clear()
         LiveActivityRegistry.coordinator.clear()
+        NowPlayingBus.update(null)
+        OnCallBus.update(null)
+        RunningTimerBus.update(null)
+        MediaArtBus.update(null)
         StatusBarIconController.clearTransientStatusIconSuppression()
         setTouchable(false)
     }
