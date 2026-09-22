@@ -49,4 +49,27 @@ class CustomStatusBarDisconnectPolicyTest {
             ),
         )
     }
+
+
+    @Test
+    fun `shutdown defers only while an applied lease cannot be released`() {
+        assertTrue(
+            CustomStatusBarShutdownPolicy.shouldDefer(
+                shizukuReady = false,
+                nativeSuppressionApplied = true,
+            ),
+        )
+        assertFalse(
+            CustomStatusBarShutdownPolicy.shouldDefer(
+                shizukuReady = true,
+                nativeSuppressionApplied = true,
+            ),
+        )
+        assertFalse(
+            CustomStatusBarShutdownPolicy.shouldDefer(
+                shizukuReady = false,
+                nativeSuppressionApplied = false,
+            ),
+        )
+    }
 }
