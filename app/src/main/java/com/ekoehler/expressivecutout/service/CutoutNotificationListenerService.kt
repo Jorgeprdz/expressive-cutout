@@ -23,6 +23,7 @@ import com.ekoehler.expressivecutout.core.live.LiveActivity
 import com.ekoehler.expressivecutout.core.live.LiveActivityRegistry
 import com.ekoehler.expressivecutout.data.BehaviourPreferences
 import com.ekoehler.expressivecutout.data.BehaviourSettings
+import com.ekoehler.expressivecutout.data.StatusBarPreferences
 import com.ekoehler.expressivecutout.events.CallNotificationParser
 import com.ekoehler.expressivecutout.events.NotificationMediaSessionRegistry
 import com.ekoehler.expressivecutout.events.TimerNotificationParser
@@ -32,6 +33,8 @@ import com.ekoehler.expressivecutout.notifications.live.NotificationLiveActivity
 import com.ekoehler.expressivecutout.notifications.live.NotificationLiveSignalsExtractor
 import com.ekoehler.expressivecutout.notifications.live.SpecializedLiveActivityFactory
 import com.ekoehler.expressivecutout.overlay.NotificationHeaderResolver
+import com.ekoehler.expressivecutout.statusbar.StatusBarNotificationEntry
+import com.ekoehler.expressivecutout.statusbar.StatusBarNotificationStore
 import com.ekoehler.expressivecutout.overlay.loadImageBitmapOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -80,6 +83,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
 
     private val behaviourPreferences by lazy { BehaviourPreferences(this) }
+    private val statusBarPreferences by lazy { StatusBarPreferences(this) }
 
     private val alerter by lazy { NotificationAlerter(this) }
 
@@ -97,6 +101,10 @@ class CutoutNotificationListenerService : NotificationListenerService() {
      */
     @Volatile
     private var islandEnabled = false
+
+    /** Independent Custom Status Bar notification consumer. */
+    @Volatile
+    private var statusBarNotificationsEnabled = false
 
     /** Cached mirror of BehaviourSettings.dismissNotifications. */
     private var dismissNotifications = BehaviourSettings.DEFAULT_DISMISS_NOTIFICATIONS
@@ -133,6 +141,36 @@ class CutoutNotificationListenerService : NotificationListenerService() {
         instance = this
         _bound.value = true
         observeBehaviour()
+    }
+
+    /** Rebuilds the custom status-bar mirror from the framework's current active set. */
+    private fun seedStatusBarNotifications() {
+        if (!statusBarNotificationsEnabled) return
+        val active = runCatching { activeNotifications }.getOrNull().orEmpty()
+        val ranks = currentRanking?.orderedKeys.orEmpty()
+            .mapIndexed { index, key -> key to index }
+            .toMap()
+        StatusBarNotificationStore.replaceAll(
+            active.mapNotNull { notification ->
+                notification.toStatusBarEntry(ranks[notification.key])
+            },
+        )
+    }
+
+    private fun StatusBarNotification.toStatusBarEntry(rank: Int? = null): StatusBarNotificationEntry? {
+        val stableKey = key?.takeIf { it.isNotBlank() } ?: return null
+        val flags = notification.flags
+        return StatusBarNotificationEntry(
+            key = stableKey,
+            packageName = packageName,
+            postTime = postTime,
+            smallIcon = notification.smallIcon,
+            rank = rank,
+            isClearable = isClearable,
+            isOngoing = flags and Notification.FLAG_ONGOING_EVENT != 0,
+            isGroupSummary = flags and Notification.FLAG_GROUP_SUMMARY != 0,
+            isSensitive = notification.visibility != Notification.VISIBILITY_PUBLIC,
+        )
     }
 
     /**
@@ -204,6 +242,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
         if (instance === this) instance = null
         _bound.value = false
         NotificationMediaSessionRegistry.clear()
+        StatusBarNotificationStore.clear()
     }
 
     /** Releases process-local listener state that must not survive service destruction. */
@@ -211,6 +250,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
         if (instance === this) instance = null
         _bound.value = false
         NotificationMediaSessionRegistry.clear()
+        StatusBarNotificationStore.clear()
         if (mutedReturns > 0) setEffectsMuted(false)
         alerter.stop()
         scope.cancel()
@@ -223,15 +263,30 @@ class CutoutNotificationListenerService : NotificationListenerService() {
         behaviourJob = scope.launch {
             combine(
                 behaviourPreferences.settings.distinctUntilChanged(),
+                statusBarPreferences.customStatusBarSettings,
                 CutoutAccessibilityService.bound,
-            ) { settings, hostBound ->
-                settings to (settings.cutoutEnabled && hostBound)
-            }.collect { (settings, runtimeEnabled) ->
+            ) { settings, statusBarSettings, hostBound ->
+                Triple(
+                    settings,
+                    settings.cutoutEnabled && hostBound,
+                    statusBarSettings.enabled && hostBound,
+                )
+            }.collect { (settings, islandRuntimeEnabled, statusBarRuntimeEnabled) ->
                 dismissNotifications = settings.dismissNotifications
                 displayWhileDnd = settings.displayWhileDnd
                 alertOnNotification = settings.alertOnNotification
-                if (islandEnabled != runtimeEnabled) {
-                    islandEnabled = runtimeEnabled
+
+                if (statusBarNotificationsEnabled != statusBarRuntimeEnabled) {
+                    statusBarNotificationsEnabled = statusBarRuntimeEnabled
+                    if (statusBarNotificationsEnabled) {
+                        seedStatusBarNotifications()
+                    } else {
+                        StatusBarNotificationStore.clear()
+                    }
+                }
+
+                if (islandEnabled != islandRuntimeEnabled) {
+                    islandEnabled = islandRuntimeEnabled
                     if (islandEnabled) seedIslandState() else clearIslandState()
                 }
             }
@@ -423,6 +478,12 @@ class CutoutNotificationListenerService : NotificationListenerService() {
     /** Routes a posted notification through specialized, native, semantic, then legacy paths. */
     override fun onNotificationPosted(sbn: StatusBarNotification?, rankingMap: RankingMap?) {
         val notification = sbn ?: return
+        if (statusBarNotificationsEnabled) {
+            val rank = rankingMap?.orderedKeys
+                ?.indexOf(notification.key)
+                ?.takeIf { it >= 0 }
+            notification.toStatusBarEntry(rank)?.let(StatusBarNotificationStore::upsert)
+        }
         if (!islandEnabled) return
 
         if (CallNotificationParser.isCall(notification)) {
@@ -539,13 +600,27 @@ class CutoutNotificationListenerService : NotificationListenerService() {
         )
     }
 
+    /** Mirrors framework ranking changes without polling or re-reading SystemUI. */
+    override fun onNotificationRankingUpdate(rankingMap: RankingMap?) {
+        super.onNotificationRankingUpdate(rankingMap)
+        if (!statusBarNotificationsEnabled || rankingMap == null) return
+        StatusBarNotificationStore.updateRanks(
+            rankingMap.orderedKeys
+                .mapIndexed { index, key -> key to index }
+                .toMap(),
+        )
+    }
+
     /** Removes live and legacy state owned by a notification that left the framework. */
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        val removed = sbn
+        if (statusBarNotificationsEnabled && removed != null) {
+            StatusBarNotificationStore.remove(removed.key)
+        }
         if (!islandEnabled) {
             super.onNotificationRemoved(sbn)
             return
         }
-        val removed = sbn
         if (removed != null) {
             NotificationMediaSessionRegistry.remove(removed.key)
             liveActivityBridge.remove(removed.packageName, removed.key)
