@@ -57,6 +57,8 @@ import java.util.Date
  */
 class SystemEventMonitor(
     private val context: Context,
+    private val islandEnabled: Boolean = true,
+    private val statusBarEnabled: Boolean = true,
     private val keyguardManager: KeyguardManager? = context.getSystemService(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob()),
 ) {
@@ -355,7 +357,7 @@ class SystemEventMonitor(
 
     private val wifiCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            CustomStatusBarDeviceStateStore.updateWifi(connected = true, level = null)
+            if (statusBarEnabled) CustomStatusBarDeviceStateStore.updateWifi(connected = true, level = null)
             val ssid = getWifiSsid(context)
             val subtitle = ssid ?: "Connected"
             emit(
@@ -369,14 +371,16 @@ class SystemEventMonitor(
         }
 
         override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
-            CustomStatusBarDeviceStateStore.updateWifi(
-                connected = true,
-                level = StatusBarSignalLevelMapper.wifiFromDbm(networkCapabilities.signalStrength),
-            )
+            if (statusBarEnabled) {
+                CustomStatusBarDeviceStateStore.updateWifi(
+                    connected = true,
+                    level = StatusBarSignalLevelMapper.wifiFromDbm(networkCapabilities.signalStrength),
+                )
+            }
         }
 
         override fun onLost(network: Network) {
-            CustomStatusBarDeviceStateStore.updateWifi(connected = false, level = null)
+            if (statusBarEnabled) CustomStatusBarDeviceStateStore.updateWifi(connected = false, level = null)
             emit(
                 SystemEventPayload(
                     type = SystemEventType.WIFI_DISCONNECTED,
@@ -506,6 +510,8 @@ class SystemEventMonitor(
      * from. Paired with [stop].
      */
     fun start() {
+        if (!islandEnabled && !statusBarEnabled) return
+
         val initialStatus = ContextCompat.registerReceiver(
             context,
             null,
@@ -519,42 +525,50 @@ class SystemEventMonitor(
         val initialBatteryStatus = initialStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
         val initialCap = getBatteryChargeCap(context)
 
-        // Seed state so an already-full battery on service start does not fire a spurious event
+        // Battery drives Island events and the Status Bar, so seed the shared source once.
         isFullyChargedState = initialPlugged > 0 && (
             initialBatteryStatus == BatteryManager.BATTERY_STATUS_FULL ||
                 initialLevel >= initialCap
         )
-        CustomStatusBarDeviceStateStore.updateBattery(
-            level = initialLevel,
-            charging = initialPlugged > 0,
-            full = isFullyChargedState,
-        )
-        updateStatusBarClock()
+        if (statusBarEnabled) {
+            CustomStatusBarDeviceStateStore.updateBattery(
+                level = initialLevel,
+                charging = initialPlugged > 0,
+                full = isFullyChargedState,
+            )
+            updateStatusBarClock()
+        }
 
-        // These are all protected system broadcasts, so the receiver is exported.
         ContextCompat.registerReceiver(
             context,
             broadcastReceiver,
             buildIntentFilter(),
             ContextCompat.RECEIVER_EXPORTED,
         )
-        audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
-        connectivityManager?.registerNetworkCallback(wifiRequest(), wifiCallback)
-        connectivityManager?.registerNetworkCallback(cellularRequest(), cellularCallback)
-        registerCellularSignalStrength()
-        scheduleCellularNetworkTypeRefresh(force = true)
-        connectivityManager?.registerNetworkCallback(vpnRequest(), vpnCallback)
 
-        runCatching {
-            val uri = Settings.Global.getUriFor(GLOBAL_ADB_WIFI_ENABLED)
-            context.contentResolver.registerContentObserver(uri, false, adbWifiObserver)
+        // Wi-Fi is shared: it feeds both Island connect/disconnect events and Status Bar signal.
+        connectivityManager?.registerNetworkCallback(wifiRequest(), wifiCallback)
+
+        if (statusBarEnabled) {
+            connectivityManager?.registerNetworkCallback(cellularRequest(), cellularCallback)
+            registerCellularSignalStrength()
+            scheduleCellularNetworkTypeRefresh(force = true)
         }
 
-        if (keyguardManager?.isDeviceLocked == true) {
-            isDeviceCurrentlyLocked = true
-            startLockPolling()
-        } else {
-            isDeviceCurrentlyLocked = false
+        if (islandEnabled) {
+            audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
+            connectivityManager?.registerNetworkCallback(vpnRequest(), vpnCallback)
+            runCatching {
+                val uri = Settings.Global.getUriFor(GLOBAL_ADB_WIFI_ENABLED)
+                context.contentResolver.registerContentObserver(uri, false, adbWifiObserver)
+            }
+
+            if (keyguardManager?.isDeviceLocked == true) {
+                isDeviceCurrentlyLocked = true
+                startLockPolling()
+            } else {
+                isDeviceCurrentlyLocked = false
+            }
         }
     }
 
@@ -676,8 +690,9 @@ class SystemEventMonitor(
         )
     }
 
-    private fun emit(payload: SystemEventPayload) =
-        IslandEventBus.emit(CutoutSignal.System(payload))
+    private fun emit(payload: SystemEventPayload) {
+        if (islandEnabled) IslandEventBus.emit(CutoutSignal.System(payload))
+    }
 
     /** Reads the current battery capacity (0..100) using [BatteryManager]. */
     private fun getBatteryLevel(context: Context): Int {
@@ -805,11 +820,13 @@ class SystemEventMonitor(
                 status == BatteryManager.BATTERY_STATUS_CHARGING
         )
         val isComplete = isStatusFull || isChargingStoppedAtCap
-        CustomStatusBarDeviceStateStore.updateBattery(
-            level = level,
-            charging = isPlugged,
-            full = isPlugged && isComplete,
-        )
+        if (statusBarEnabled) {
+            CustomStatusBarDeviceStateStore.updateBattery(
+                level = level,
+                charging = isPlugged,
+                full = isPlugged && isComplete,
+            )
+        }
 
         if (!isPlugged) {
             isFullyChargedState = false
@@ -849,25 +866,32 @@ class SystemEventMonitor(
      * manifest can't drift apart.
      */
     private fun buildIntentFilter() = IntentFilter().apply {
+        // Battery is shared by Island events and the Custom Status Bar.
         addAction(Intent.ACTION_POWER_CONNECTED)
         addAction(Intent.ACTION_POWER_DISCONNECTED)
         addAction(Intent.ACTION_BATTERY_CHANGED)
         addAction(Intent.ACTION_BATTERY_LOW)
         addAction(Intent.ACTION_BATTERY_OKAY)
-        addAction(Intent.ACTION_SCREEN_OFF)
-        addAction(Intent.ACTION_SCREEN_ON)
-        addAction(Intent.ACTION_USER_PRESENT)
-        addAction(Intent.ACTION_TIME_TICK)
-        addAction(Intent.ACTION_TIME_CHANGED)
-        addAction(Intent.ACTION_TIMEZONE_CHANGED)
-        addAction(Intent.ACTION_LOCALE_CHANGED)
-        addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
-        addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        addAction(ACTION_USB_STATE)
-        addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
-        addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-        addAction(ACTION_WIFI_AP_STATE_CHANGED)
-        addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
+
+        if (statusBarEnabled) {
+            addAction(Intent.ACTION_TIME_TICK)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_LOCALE_CHANGED)
+        }
+
+        if (islandEnabled) {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+            addAction(ACTION_USB_STATE)
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            addAction(ACTION_WIFI_AP_STATE_CHANGED)
+            addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
+        }
     }
 
     /** Refreshes the clock only on system time/locale events; there is no per-second timer. */
