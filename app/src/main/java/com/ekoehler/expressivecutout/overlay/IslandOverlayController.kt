@@ -396,6 +396,10 @@ internal class IslandOverlayController(
      * Starts or stops every Island-owned collector while keeping the shared overlay and Custom
      * Status Bar alive when they are still needed.
      */
+    fun reconcileCustomStatusBarAppearance() {
+        customStatusBarController.reconcileAppearance()
+    }
+
     fun setIslandRuntimeEnabled(enabled: Boolean) {
         if (islandRuntimeEnabledState.value == enabled) return
         islandRuntimeEnabledState.value = enabled
