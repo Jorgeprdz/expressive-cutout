@@ -33,6 +33,16 @@ class StatusBarNotificationPresentationPolicyTest {
     }
 
     @Test
+    fun `dot hides when even its own width cannot fit`() {
+        val result = resolve(
+            listOf(entry("a")),
+            StatusBarNotificationDisplayMode.DOT,
+            width = 2,
+        )
+        assertFalse(result.showDot)
+    }
+
+    @Test
     fun `hidden mode renders nothing`() {
         val result = resolve(listOf(entry("a")), StatusBarNotificationDisplayMode.HIDDEN)
         assertFalse(result.showDot)
