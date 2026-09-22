@@ -71,6 +71,12 @@ internal class CustomStatusBarController(
         }
     }
 
+    fun reconcileAppearance() {
+        val scope = runtimeScope ?: return
+        if (!_render.value) return
+        scope.launch { appearanceController.reconcile() }
+    }
+
     fun stop() {
         StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
         _render.value = false
