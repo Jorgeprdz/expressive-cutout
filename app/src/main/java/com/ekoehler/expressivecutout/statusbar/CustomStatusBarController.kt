@@ -27,6 +27,16 @@ import kotlinx.coroutines.launch
  * The shared accessibility overlay remains the visual host, but native SystemUI suppression,
  * Shizuku readiness, appearance monitoring and persisted status-bar settings are owned here.
  */
+internal object CustomStatusBarDisconnectPolicy {
+    fun keepRenderer(
+        nativeSuppressionApplied: Boolean,
+        enabled: Boolean,
+        locked: Boolean,
+        portraitSupported: Boolean,
+    ): Boolean =
+        nativeSuppressionApplied && enabled && !locked && portraitSupported
+}
+
 internal class CustomStatusBarController(
     context: Context,
     private val orientation: StateFlow<Int>,
@@ -119,8 +129,12 @@ internal class CustomStatusBarController(
             if (!wish.settings.enabled) {
                 StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
             }
-            _render.value =
-                nativeSuppressionApplied && wish.settings.enabled && !wish.locked && portraitSupported
+            _render.value = CustomStatusBarDisconnectPolicy.keepRenderer(
+                nativeSuppressionApplied = nativeSuppressionApplied,
+                enabled = wish.settings.enabled,
+                locked = wish.locked,
+                portraitSupported = portraitSupported,
+            )
             return
         }
 
