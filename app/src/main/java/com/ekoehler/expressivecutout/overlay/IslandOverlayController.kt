@@ -521,10 +521,10 @@ internal class IslandOverlayController(
         windowResizeJob?.cancel()
         StatusBarIconController.clearTransientStatusIconSuppression()
         stopIslandRuntime()
-        if (customStatusBarRuntimeEnabled) {
-            customStatusBarRuntimeEnabled = false
-            customStatusBarController.stop()
-        }
+        customStatusBarRuntimeEnabled = false
+        // Force-stop even when a normal OFF transition was deferred while Shizuku was unavailable.
+        // The controller owns an independent scope, so service teardown must never leave it alive.
+        customStatusBarController.stop()
         runCatching { context.unregisterReceiver(lockReceiver) }
         removeOverlay()
         lifecycleOwner.onDestroy()
