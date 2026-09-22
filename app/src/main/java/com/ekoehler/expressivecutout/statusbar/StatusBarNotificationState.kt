@@ -42,7 +42,6 @@ internal object StatusBarNotificationStore {
     }
 
     fun updateRanks(ranks: Map<String, Int>) {
-        if (ranks.isEmpty()) return
         _entries.update { current ->
             current.map { entry -> entry.copy(rank = ranks[entry.key]) }
         }
