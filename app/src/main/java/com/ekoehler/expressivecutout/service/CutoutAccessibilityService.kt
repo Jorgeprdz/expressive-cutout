@@ -36,6 +36,7 @@ class CutoutAccessibilityService : AccessibilityService() {
 
     private var overlay: IslandOverlayController? = null
     private var systemEvents: SystemEventMonitor? = null
+    private var systemEventConsumers: Pair<Boolean, Boolean>? = null
     private var mediaPlayback: MediaPlaybackMonitor? = null
     private var runtimeCoordinator: TopAreaRuntimeCoordinator? = null
     private var currentRuntimeState: TopAreaRuntimeState? = null
@@ -86,15 +87,22 @@ class CutoutAccessibilityService : AccessibilityService() {
             mediaPlayback = null
         }
 
-        // SystemEventMonitor is still a single shared instance. M5 narrows its registrations based
-        // on these same consumer flags without ever creating parallel observers.
+        // Reconfigure the one shared observer set only when its consumers actually change.
+        val consumers = state.islandWanted to state.statusBarWanted
         if (state.overlayWanted) {
-            if (systemEvents == null) {
-                systemEvents = SystemEventMonitor(this).also { it.start() }
+            if (systemEvents == null || systemEventConsumers != consumers) {
+                systemEvents?.stop()
+                systemEvents = SystemEventMonitor(
+                    context = this,
+                    islandEnabled = state.islandWanted,
+                    statusBarEnabled = state.statusBarWanted,
+                ).also { it.start() }
+                systemEventConsumers = consumers
             }
         } else {
             systemEvents?.stop()
             systemEvents = null
+            systemEventConsumers = null
         }
     }
 
@@ -314,6 +322,7 @@ class CutoutAccessibilityService : AccessibilityService() {
         mediaPlayback = null
         systemEvents?.stop()
         systemEvents = null
+        systemEventConsumers = null
         overlay?.stop()
         overlay = null
     }
