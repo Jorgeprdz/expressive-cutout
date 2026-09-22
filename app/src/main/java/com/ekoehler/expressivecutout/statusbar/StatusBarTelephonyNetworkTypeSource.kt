@@ -205,6 +205,9 @@ internal class ShizukuUserServiceTelephonyDumpTransport(
     private var binding = false
 
     @Volatile
+    private var bindingWanted = false
+
+    @Volatile
     private var pending: CompletableDeferred<IStatusBarTelephonyUserService?>? = null
 
     private val serviceArgs = Shizuku.UserServiceArgs(
@@ -218,6 +221,16 @@ internal class ShizukuUserServiceTelephonyDumpTransport(
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             val service = binder?.let(IStatusBarTelephonyUserService.Stub::asInterface)
+            if (!bindingWanted) {
+                remote.set(null)
+                val waiter = synchronized(lock) {
+                    binding = false
+                    pending.also { pending = null }
+                }
+                waiter?.complete(null)
+                runCatching { Shizuku.unbindUserService(serviceArgs, this, true) }
+                return
+            }
             remote.set(service)
             val waiter = synchronized(lock) {
                 binding = false
@@ -285,6 +298,7 @@ internal class ShizukuUserServiceTelephonyDumpTransport(
     }
 
     override fun close() {
+        bindingWanted = false
         val waiter = synchronized(lock) {
             binding = false
             pending.also { pending = null }
@@ -303,6 +317,7 @@ internal class ShizukuUserServiceTelephonyDumpTransport(
     }
 
     private suspend fun awaitService(): IStatusBarTelephonyUserService? {
+        bindingWanted = true
         remote.get()?.takeIf { it.asBinder().isBinderAlive }?.let { return it }
 
         val (waiter, shouldBind) = synchronized(lock) {
