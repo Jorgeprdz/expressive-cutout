@@ -887,8 +887,8 @@ internal class IslandOverlayController(
                             val visibleLiveStableIds = buildSet {
                                 if (islandRuntimeEnabled) {
                                     event?.stableId?.let(::add)
-                                    if (satellite != null && !isExpandedForStatusBar) {
-                                        satellite.stableId?.let(::add)
+                                    if (!isExpandedForStatusBar) {
+                                        satellite?.stableId?.let(::add)
                                     }
                                 }
                             }
