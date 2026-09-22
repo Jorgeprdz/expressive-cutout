@@ -148,9 +148,29 @@ class CutoutNotificationListenerService : NotificationListenerService() {
                 else -> {
                     notification.publishMediaSessionFallback()
                     notification.publishMediaArt()
+                    rehydrateLiveActivity(notification)
                 }
             }
         }
+    }
+
+    /**
+     * Rebuilds only ongoing native/semantic live state after OFF -> ON. Legacy notifications are
+     * deliberately marked non-surfaceable here, so re-enabling the Island never replays old alerts.
+     */
+    private fun rehydrateLiveActivity(notification: StatusBarNotification) {
+        val extracted = NotificationLiveSignalsExtractor.extract(this, notification)
+        liveActivityBridge.post(
+            NotificationLiveActivityProcessor.Input(
+                signals = extracted.signals,
+                nativeSnapshot = extracted.nativeSnapshot,
+                isMedia = notification.notification.extras
+                    ?.containsKey(Notification.EXTRA_MEDIA_SESSION) == true,
+                blocked = notification.isExplicitlyBlockedFromLiveRouting() || suppressedByDnd(),
+                legacySurfaceable = false,
+                nowElapsedRealtime = SystemClock.elapsedRealtime(),
+            ),
+        )
     }
 
     /** Hard-clears state owned by the Dynamic Island while leaving the framework listener bound. */
