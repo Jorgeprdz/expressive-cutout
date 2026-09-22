@@ -479,7 +479,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?, rankingMap: RankingMap?) {
         val notification = sbn ?: return
         if (statusBarNotificationsEnabled) {
-            val rank = rankingMap?.orderedKeys
+            val rank = (rankingMap ?: currentRanking)?.orderedKeys
                 ?.indexOf(notification.key)
                 ?.takeIf { it >= 0 }
             notification.toStatusBarEntry(rank)?.let(StatusBarNotificationStore::upsert)
