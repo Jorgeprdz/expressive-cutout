@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -64,6 +65,7 @@ internal fun StatusBarNotificationLane(
         modifier = modifier
             .offset { IntOffset(bounds.left, bounds.top) }
             .width(with(density) { bounds.width.toDp() })
+            .height(with(density) { bounds.height.toDp() })
             .clipToBounds(),
         horizontalArrangement = Arrangement.spacedBy(spacing.dp),
         verticalAlignment = Alignment.CenterVertically,
