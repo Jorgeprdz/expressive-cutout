@@ -151,6 +151,7 @@ internal data class StatusBarTelephonyDisplayInfo(
 internal interface StatusBarTelephonyTransport {
     suspend fun readDisplayInfo(): StatusBarTelephonyDisplayInfo?
     suspend fun dumpTelephonyRegistry(): String?
+    fun close() = Unit
 }
 
 internal class StatusBarTelephonyNetworkTypeSource(
@@ -169,6 +170,10 @@ internal class StatusBarTelephonyNetworkTypeSource(
         return transport.dumpTelephonyRegistry()
             ?.let(StatusBarTelephonyNetworkTypeParser::parse)
     }
+
+    fun close() {
+        transport.close()
+    }
 }
 
 internal class ShizukuStatusBarTelephonyNetworkTypeSource(
@@ -181,6 +186,10 @@ internal class ShizukuStatusBarTelephonyNetworkTypeSource(
     suspend fun snapshot(): StatusBarNetworkType? {
         if (ShizukuState.status.value != ShizukuStatus.READY) return null
         return source.snapshot()
+    }
+
+    fun close() {
+        source.close()
     }
 }
 
@@ -272,6 +281,24 @@ internal class ShizukuUserServiceTelephonyDumpTransport(
                     )
                 }
                 .getOrNull()
+        }
+    }
+
+    override fun close() {
+        val waiter = synchronized(lock) {
+            binding = false
+            pending.also { pending = null }
+        }
+        waiter?.complete(null)
+        remote.set(null)
+        runCatching {
+            Shizuku.unbindUserService(serviceArgs, connection, true)
+        }.onFailure { error ->
+            Log.d(
+                TAG,
+                "STATUS_BAR_SIGNAL telephonyUnbindFailure=" +
+                    "${error.javaClass.simpleName}:${error.message}",
+            )
         }
     }
 
