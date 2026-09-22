@@ -580,14 +580,22 @@ class SystemEventMonitor(
         stopLockPolling()
         scope.cancel()
         runCatching { context.unregisterReceiver(broadcastReceiver) }
-        runCatching { context.contentResolver.unregisterContentObserver(adbWifiObserver) }
-        audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
-        connectivityManager?.unregisterNetworkCallback(wifiCallback)
-        connectivityManager?.unregisterNetworkCallback(cellularCallback)
-        unregisterCellularSignalStrength()
-        cellularNetworkTypeRefreshJob?.cancel()
-        cellularNetworkTypeRefreshJob = null
-        connectivityManager?.unregisterNetworkCallback(vpnCallback)
+
+        // Wi-Fi is the only network callback registered for every non-empty consumer set.
+        runCatching { connectivityManager?.unregisterNetworkCallback(wifiCallback) }
+
+        if (statusBarEnabled) {
+            runCatching { connectivityManager?.unregisterNetworkCallback(cellularCallback) }
+            unregisterCellularSignalStrength()
+            cellularNetworkTypeRefreshJob?.cancel()
+            cellularNetworkTypeRefreshJob = null
+        }
+
+        if (islandEnabled) {
+            runCatching { context.contentResolver.unregisterContentObserver(adbWifiObserver) }
+            runCatching { audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback) }
+            runCatching { connectivityManager?.unregisterNetworkCallback(vpnCallback) }
+        }
     }
 
     /** Checks wireless ADB setting and emits connect / disconnect events accordingly. */
