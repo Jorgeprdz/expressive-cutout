@@ -40,6 +40,7 @@ import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
 import com.ekoehler.expressivecutout.data.CustomStatusBarStyle
 import com.ekoehler.expressivecutout.data.CustomStatusBarStyleUiPolicy
 import com.ekoehler.expressivecutout.data.IosBatteryColorMode
+import com.ekoehler.expressivecutout.data.StatusBarNotificationDisplayMode
 import com.ekoehler.expressivecutout.statusbar.CustomStatusBarPreviewState
 import com.ekoehler.expressivecutout.statusbar.IslandOccupancy
 import com.ekoehler.expressivecutout.statusbar.PixelStatusBarLayer
@@ -47,6 +48,7 @@ import com.ekoehler.expressivecutout.statusbar.StatusBarForeground
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutEngine
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutInput
 import com.ekoehler.expressivecutout.statusbar.StatusBarRect
+import com.ekoehler.expressivecutout.statusbar.StatusBarNotificationEntry
 import com.ekoehler.expressivecutout.ui.AppViewModel
 import com.ekoehler.expressivecutout.ui.components.ExpressiveSegmentedRow
 import kotlin.math.roundToInt
@@ -160,6 +162,32 @@ internal fun CustomStatusBarScreen(
                             2 -> CustomStatusBarAppearancePreference.DARK
                             else -> CustomStatusBarAppearancePreference.AUTO
                         },
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        SettingSectionCard(
+            title = "Notifications",
+            description = "Choose how active notifications appear beside the clock. This is independent from One UI's notification icon setting.",
+        ) {
+            ExpressiveSegmentedRow(
+                options = listOf("Dot", "Icons", "Hidden"),
+                selectedIndex = when (settings.notificationDisplayMode) {
+                    StatusBarNotificationDisplayMode.DOT -> 0
+                    StatusBarNotificationDisplayMode.ICONS -> 1
+                    StatusBarNotificationDisplayMode.HIDDEN -> 2
+                },
+                onSelect = { index ->
+                    viewModel.setCustomStatusBarSettings(
+                        settings.copy(
+                            notificationDisplayMode = when (index) {
+                                1 -> StatusBarNotificationDisplayMode.ICONS
+                                2 -> StatusBarNotificationDisplayMode.HIDDEN
+                                else -> StatusBarNotificationDisplayMode.DOT
+                            },
+                        ),
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -415,12 +443,30 @@ private fun PremiumPreviewCard(
                         ),
                     ),
                 )
+                val previewNotifications = remember {
+                    listOf(
+                        StatusBarNotificationEntry(
+                            key = "preview-mail",
+                            packageName = "preview.mail",
+                            postTime = 2L,
+                            rank = 0,
+                        ),
+                        StatusBarNotificationEntry(
+                            key = "preview-chat",
+                            packageName = "preview.chat",
+                            postTime = 1L,
+                            rank = 1,
+                        ),
+                    )
+                }
                 PixelStatusBarLayer(
                     state = previewState,
                     leftForeground = foreground,
                     rightForeground = foreground,
                     layout = layout,
                     settings = settings,
+                    notifications = previewNotifications,
+                    ownPackageName = "com.ekoehler.expressivecutout",
                     modifier = Modifier.fillMaxSize(),
                 )
             }
