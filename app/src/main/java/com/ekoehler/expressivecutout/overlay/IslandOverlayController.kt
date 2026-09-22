@@ -134,6 +134,7 @@ import kotlin.math.roundToInt
  */
 internal class IslandOverlayController(
     private val context: Context,
+    private val onSharedOverlayIdle: () -> Unit = {},
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
@@ -401,9 +402,15 @@ internal class IslandOverlayController(
         addOverlay()
         registerLockReceiver()
         scope.launch {
-            customStatusBarController.render.collect {
+            customStatusBarController.render.collect { rendering ->
                 syncWindowSize()
                 applyLockVisibility()
+                if (!rendering &&
+                    !islandRuntimeEnabledState.value &&
+                    !customStatusBarRuntimeEnabled
+                ) {
+                    onSharedOverlayIdle()
+                }
             }
         }
     }
@@ -416,12 +423,26 @@ internal class IslandOverlayController(
         customStatusBarController.reconcileAppearance()
     }
 
-    fun setCustomStatusBarRuntimeEnabled(enabled: Boolean) {
-        if (customStatusBarRuntimeEnabled == enabled) return
+    /**
+     * Enables/disables the Custom Status Bar runtime independently.
+     *
+     * @return true when a requested disable is fully released. False means the renderer must remain
+     * temporarily alive until Shizuku can restore native SystemUI.
+     */
+    fun setCustomStatusBarRuntimeEnabled(enabled: Boolean): Boolean {
+        if (customStatusBarRuntimeEnabled == enabled) {
+            return enabled || !customStatusBarController.render.value
+        }
         customStatusBarRuntimeEnabled = enabled
-        if (enabled) customStatusBarController.start() else customStatusBarController.stop()
+        val stopped = if (enabled) {
+            customStatusBarController.start()
+            true
+        } else {
+            customStatusBarController.requestStop()
+        }
         syncWindowSize()
         applyLockVisibility()
+        return stopped
     }
 
     fun setIslandRuntimeEnabled(enabled: Boolean) {
