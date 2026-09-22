@@ -223,7 +223,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
         behaviourJob = scope.launch {
             combine(
                 behaviourPreferences.settings.distinctUntilChanged(),
-                CutoutAccessibilityService.bound.distinctUntilChanged(),
+                CutoutAccessibilityService.bound,
             ) { settings, hostBound ->
                 settings to (settings.cutoutEnabled && hostBound)
             }.collect { (settings, runtimeEnabled) ->
