@@ -155,9 +155,9 @@ class CutoutNotificationListenerService : NotificationListenerService() {
 
     /** Hard-clears state owned by the Dynamic Island while leaving the framework listener bound. */
     private fun clearIslandState() {
+        // Keep returning/pendingCancel markers until Android reposts those keys. That prevents a
+        // rapid OFF -> ON from surfacing a just-released held notification as a brand-new event.
         held.keys.toList().forEach(::releaseHeld)
-        returning.clear()
-        pendingCancel.clear()
         suppressed.clear()
         shownFingerprint.clear()
         currentCallKey = null
