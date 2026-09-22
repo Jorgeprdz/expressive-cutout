@@ -69,7 +69,7 @@ internal fun StatusBarNotificationLane(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (presentation.showDot) {
-            NotificationDot(sizeDp = dotSize)
+            NotificationDot(sizeDp = dotSize, tint = tint)
         } else {
             presentation.entries.forEach { entry ->
                 StatusBarNotificationGlyph(
@@ -79,7 +79,7 @@ internal fun StatusBarNotificationLane(
                 )
             }
             if (presentation.showOverflow) {
-                NotificationDot(sizeDp = dotSize)
+                NotificationDot(sizeDp = dotSize, tint = tint)
             }
         }
     }
@@ -121,10 +121,10 @@ private fun StatusBarNotificationGlyph(
 }
 
 @Composable
-private fun NotificationDot(sizeDp: Float) {
-    val tint = StatusBarTint.colorFor(StatusBarForeground.LIGHT)
-    // Tint is overridden by the parent through LocalContentColor-independent Canvas? No: receive it
-    // explicitly at call sites would duplicate the primitive, so draw using a neutral alpha mask.
+private fun NotificationDot(
+    sizeDp: Float,
+    tint: androidx.compose.ui.graphics.Color,
+) {
     Box(modifier = Modifier.size(sizeDp.dp), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.size(sizeDp.dp)) {
             drawCircle(color = tint)
