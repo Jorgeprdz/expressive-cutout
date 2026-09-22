@@ -37,14 +37,14 @@ internal object StatusBarNotificationPresentationPolicy {
 
         if (eligible.isEmpty()) return StatusBarNotificationPresentation()
 
-        if (mode == StatusBarNotificationDisplayMode.DOT) {
-            return StatusBarNotificationPresentation(showDot = true)
-        }
-
         val width = availableWidthPx.coerceAtLeast(0)
         val icon = iconWidthPx.coerceAtLeast(1)
         val spacing = spacingPx.coerceAtLeast(0)
         val overflow = overflowWidthPx.coerceAtLeast(1)
+
+        if (mode == StatusBarNotificationDisplayMode.DOT) {
+            return StatusBarNotificationPresentation(showDot = width >= overflow)
+        }
         val allWidth = eligible.size * icon + (eligible.size - 1).coerceAtLeast(0) * spacing
         if (allWidth <= width) {
             return StatusBarNotificationPresentation(entries = eligible)
