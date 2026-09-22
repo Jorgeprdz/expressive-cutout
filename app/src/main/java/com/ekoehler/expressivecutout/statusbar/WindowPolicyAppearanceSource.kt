@@ -76,6 +76,10 @@ internal class ShizukuWindowAppearanceSource(
         }
     }
 
+    override fun close() {
+        transport.close()
+    }
+
     override suspend fun snapshot(): SystemBarAppearanceSnapshot? = withContext(Dispatchers.IO) {
         val shizuku = ShizukuState.status.value
         if (shizuku != ShizukuStatus.READY) {
