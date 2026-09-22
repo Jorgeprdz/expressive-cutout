@@ -132,6 +132,7 @@ internal class CustomStatusBarController(
         _render.value = false
         appearanceJob?.cancel()
         appearanceJob = null
+        appearanceController.close()
         controlJob?.cancel()
         controlJob = null
         runtimeScope?.cancel()
