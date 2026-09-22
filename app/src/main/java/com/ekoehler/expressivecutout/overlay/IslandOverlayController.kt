@@ -203,6 +203,7 @@ internal class IslandOverlayController(
         )
     private val islandRuntimeEnabledState = MutableStateFlow(false)
     private var islandRuntimeScope: CoroutineScope? = null
+    private var customStatusBarRuntimeEnabled = false
 
     private val displayHeightPx: Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -399,7 +400,6 @@ internal class IslandOverlayController(
         lifecycleOwner.onCreate()
         addOverlay()
         registerLockReceiver()
-        customStatusBarController.start()
         scope.launch {
             customStatusBarController.render.collect {
                 syncWindowSize()
@@ -414,6 +414,14 @@ internal class IslandOverlayController(
      */
     fun reconcileCustomStatusBarAppearance() {
         customStatusBarController.reconcileAppearance()
+    }
+
+    fun setCustomStatusBarRuntimeEnabled(enabled: Boolean) {
+        if (customStatusBarRuntimeEnabled == enabled) return
+        customStatusBarRuntimeEnabled = enabled
+        if (enabled) customStatusBarController.start() else customStatusBarController.stop()
+        syncWindowSize()
+        applyLockVisibility()
     }
 
     fun setIslandRuntimeEnabled(enabled: Boolean) {
@@ -492,7 +500,10 @@ internal class IslandOverlayController(
         windowResizeJob?.cancel()
         StatusBarIconController.clearTransientStatusIconSuppression()
         stopIslandRuntime()
-        customStatusBarController.stop()
+        if (customStatusBarRuntimeEnabled) {
+            customStatusBarRuntimeEnabled = false
+            customStatusBarController.stop()
+        }
         runCatching { context.unregisterReceiver(lockReceiver) }
         removeOverlay()
         lifecycleOwner.onDestroy()
