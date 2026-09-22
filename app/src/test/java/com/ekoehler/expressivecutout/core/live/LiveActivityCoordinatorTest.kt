@@ -112,16 +112,16 @@ class LiveActivityCoordinatorTest {
     @Test
     fun `clear removes all activities and slots idempotently`() {
         val coordinator = LiveActivityCoordinator()
-        coordinator.upsert(activity("one", LiveActivity.Kind.MUSIC, priority = 10))
-        coordinator.upsert(activity("two", LiveActivity.Kind.TIMER, priority = 20))
+        coordinator.upsert(activity("one", LiveActivity.Kind.MUSIC, "One", 10L))
+        coordinator.upsert(activity("two", LiveActivity.Kind.TIMER, "Two", 20L))
 
         coordinator.clear()
 
-        assertTrue(coordinator.state.value.isEmpty())
+        assertEquals(emptyList<LiveActivity>(), coordinator.state.value)
         assertEquals(LiveActivityCoordinator.Slots(), coordinator.slots.value)
 
         coordinator.clear()
-        assertTrue(coordinator.state.value.isEmpty())
+        assertEquals(emptyList<LiveActivity>(), coordinator.state.value)
         assertEquals(LiveActivityCoordinator.Slots(), coordinator.slots.value)
     }
 }
