@@ -61,6 +61,7 @@ internal object SystemBarAppearanceNormalizer {
 internal interface SystemBarAppearanceSource {
     val changes: Flow<SystemBarAppearanceSnapshot>
     suspend fun snapshot(): SystemBarAppearanceSnapshot?
+    fun close() = Unit
 }
 
 /**
@@ -83,6 +84,11 @@ internal class StatusBarAppearanceController(
 
     suspend fun reconcile() {
         applyNormalized(source.snapshot()?.let(SystemBarAppearanceNormalizer::normalize))
+    }
+
+    fun close() {
+        source.close()
+        applyNormalized(null)
     }
 
     private fun applyNormalized(next: StatusBarAppearanceState?) {
