@@ -137,7 +137,7 @@ class CutoutAccessibilityService : AccessibilityService() {
         notificationRecoveryJob = serviceScope.launch {
             CutoutNotificationListenerService.bound.collectLatest { listenerBound ->
                 if (listenerBound ||
-                    currentRuntimeState?.let { !it.islandWanted && !it.statusBarWanted } != false ||
+                    currentRuntimeState?.let { it.islandWanted || it.statusBarWanted } != true ||
                     !Permissions.isNotificationAccessGranted(this@CutoutAccessibilityService)
                 ) {
                     return@collectLatest
@@ -211,11 +211,11 @@ class CutoutAccessibilityService : AccessibilityService() {
         val pkg = ev.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
 
         if (ev.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            if (currentRuntimeState?.let { it.islandWanted || it.statusBarWanted } == true) ForegroundAppBus.update(pkg)
+            if (currentRuntimeState?.islandWanted == true) ForegroundAppBus.update(pkg)
             if (currentRuntimeState?.statusBarWanted == true) scheduleStatusBarAppearanceReconcile()
         }
 
-        if (currentRuntimeState?.let { !it.islandWanted && !it.statusBarWanted } != false) return
+        if (currentRuntimeState?.islandWanted != true) return
 
         if (isAssistantPackage(pkg)) {
             inspectAssistantWindow(pkg, ev)
