@@ -67,13 +67,21 @@ class CutoutAccessibilityService : AccessibilityService() {
 
         if (state.overlayWanted) {
             if (overlay == null) {
-                overlay = IslandOverlayController(this).also { it.start() }
+                overlay = IslandOverlayController(
+                    context = this,
+                    onSharedOverlayIdle = ::releaseIdleOverlay,
+                ).also { it.start() }
             }
             overlay?.setIslandRuntimeEnabled(state.islandWanted)
             overlay?.setCustomStatusBarRuntimeEnabled(state.statusBarWanted)
         } else {
-            overlay?.stop()
-            overlay = null
+            overlay?.setIslandRuntimeEnabled(false)
+            val statusBarStopped =
+                overlay?.setCustomStatusBarRuntimeEnabled(false) ?: true
+            if (statusBarStopped) {
+                overlay?.stop()
+                overlay = null
+            }
         }
 
         if (state.islandWanted) {
@@ -105,6 +113,13 @@ class CutoutAccessibilityService : AccessibilityService() {
             systemEvents = null
             systemEventConsumers = null
         }
+    }
+
+    /** Drops a temporarily-retained shared overlay once its native Status Bar lease is safe. */
+    private fun releaseIdleOverlay() {
+        if (currentRuntimeState?.overlayWanted == true) return
+        overlay?.stop()
+        overlay = null
     }
 
     /**
