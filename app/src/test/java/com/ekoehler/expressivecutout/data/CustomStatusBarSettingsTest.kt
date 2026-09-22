@@ -19,6 +19,7 @@ class CustomStatusBarSettingsTest {
         assertEquals(1f, d.batteryScale)
         assertEquals(PixelMobileBarStyle.CLASSIC, d.mobileBarStyle)
         assertEquals(BatteryPercentageMode.OFF, d.batteryPercentageMode)
+        assertEquals(StatusBarNotificationDisplayMode.DOT, d.notificationDisplayMode)
     }
 
     @Test
@@ -63,6 +64,9 @@ class CustomStatusBarSettingsTest {
         assertEquals(BatteryPercentageMode.OFF, BatteryPercentageMode.fromPersisted("wat"))
         assertEquals(PixelMobileBarStyle.CLASSIC, PixelMobileBarStyle.fromPersisted("future"))
         assertEquals(CustomStatusBarStyle.IOS_27, CustomStatusBarStyle.fromPersisted("future"))
+        assertEquals(StatusBarNotificationDisplayMode.DOT, StatusBarNotificationDisplayMode.fromPersisted(null))
+        assertEquals(StatusBarNotificationDisplayMode.DOT, StatusBarNotificationDisplayMode.fromPersisted("future"))
+        assertEquals(StatusBarNotificationDisplayMode.ICONS, StatusBarNotificationDisplayMode.fromPersisted("icons"))
     }
 
     @Test
@@ -125,6 +129,7 @@ class CustomStatusBarSettingsTest {
             clockOffsetXDp = 12f,
             mobileBarStyle = PixelMobileBarStyle.TALL,
             batteryPercentageMode = BatteryPercentageMode.OUTSIDE,
+            notificationDisplayMode = StatusBarNotificationDisplayMode.ICONS,
         )
 
         val reset = changed.withPixelDefaults()
@@ -136,5 +141,6 @@ class CustomStatusBarSettingsTest {
         assertEquals(0f, reset.clockOffsetXDp)
         assertEquals(PixelMobileBarStyle.CLASSIC, reset.mobileBarStyle)
         assertEquals(BatteryPercentageMode.OFF, reset.batteryPercentageMode)
+        assertEquals(StatusBarNotificationDisplayMode.ICONS, reset.notificationDisplayMode)
     }
 }
