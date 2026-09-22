@@ -42,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -91,8 +92,8 @@ class CutoutNotificationListenerService : NotificationListenerService() {
 
     /**
      * Master Dynamic Island runtime gate. It starts fail-closed until DataStore emits the persisted
-     * cutoutEnabled value, preventing a listener bind from briefly routing notifications to a
-     * user-disabled island.
+     * cutoutEnabled value and a live accessibility host, preventing a listener bind from briefly
+     * routing notifications to a disabled or currently unrenderable island.
      */
     @Volatile
     private var islandEnabled = false
@@ -220,17 +221,20 @@ class CutoutNotificationListenerService : NotificationListenerService() {
     private fun observeBehaviour() {
         if (behaviourJob?.isActive == true) return
         behaviourJob = scope.launch {
-            behaviourPreferences.settings
-                .distinctUntilChanged()
-                .collect { settings ->
-                    dismissNotifications = settings.dismissNotifications
-                    displayWhileDnd = settings.displayWhileDnd
-                    alertOnNotification = settings.alertOnNotification
-                    if (islandEnabled != settings.cutoutEnabled) {
-                        islandEnabled = settings.cutoutEnabled
-                        if (islandEnabled) seedIslandState() else clearIslandState()
-                    }
+            combine(
+                behaviourPreferences.settings.distinctUntilChanged(),
+                CutoutAccessibilityService.bound.distinctUntilChanged(),
+            ) { settings, hostBound ->
+                settings to (settings.cutoutEnabled && hostBound)
+            }.collect { (settings, runtimeEnabled) ->
+                dismissNotifications = settings.dismissNotifications
+                displayWhileDnd = settings.displayWhileDnd
+                alertOnNotification = settings.alertOnNotification
+                if (islandEnabled != runtimeEnabled) {
+                    islandEnabled = runtimeEnabled
+                    if (islandEnabled) seedIslandState() else clearIslandState()
                 }
+            }
         }
     }
 
