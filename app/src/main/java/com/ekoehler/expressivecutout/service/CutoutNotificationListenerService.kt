@@ -89,6 +89,14 @@ class CutoutNotificationListenerService : NotificationListenerService() {
 
     private var behaviourJob: Job? = null
 
+    /**
+     * Master Dynamic Island runtime gate. It starts fail-closed until DataStore emits the persisted
+     * cutoutEnabled value, preventing a listener bind from briefly routing notifications to a
+     * user-disabled island.
+     */
+    @Volatile
+    private var islandEnabled = false
+
     /** Cached mirror of BehaviourSettings.dismissNotifications. */
     private var dismissNotifications = BehaviourSettings.DEFAULT_DISMISS_NOTIFICATIONS
 
@@ -119,21 +127,55 @@ class CutoutNotificationListenerService : NotificationListenerService() {
     /** Closes the mute window even if a fetch-back never lands. */
     private var unmuteJob: Job? = null
 
-    /** Publishes the listener, starts settings observation, and restores current media state. */
+    /** Publishes the listener and waits for persisted behavior before enabling Island routing. */
     override fun onListenerConnected() {
         instance = this
         _bound.value = true
         observeBehaviour()
-        seedMediaState()
     }
 
-    /** Republishes media-session fallbacks and cover art from notifications that predate this bind. */
-    private fun seedMediaState() {
+    /**
+     * Restores only genuinely ongoing Island sources after the master switch comes back on.
+     * Ordinary historical notifications are deliberately not replayed.
+     */
+    private fun seedIslandState() {
+        if (!islandEnabled) return
         val active = runCatching { activeNotifications }.getOrNull() ?: return
         active.sortedBy { it.postTime }.forEach { notification ->
-            notification.publishMediaSessionFallback()
-            notification.publishMediaArt()
+            when {
+                CallNotificationParser.isCall(notification) -> handleCall(notification)
+                TimerNotificationParser.isTimer(notification) -> handleTimer(notification)
+                else -> {
+                    notification.publishMediaSessionFallback()
+                    notification.publishMediaArt()
+                }
+            }
         }
+    }
+
+    /** Hard-clears state owned by the Dynamic Island while leaving the framework listener bound. */
+    private fun clearIslandState() {
+        held.keys.toList().forEach(::releaseHeld)
+        returning.clear()
+        pendingCancel.clear()
+        suppressed.clear()
+        shownFingerprint.clear()
+        currentCallKey = null
+        currentTimerKey = null
+        currentMediaArtKey = null
+        currentAssistantKey = null
+        NotificationMediaSessionRegistry.clear()
+        LiveActivityRegistry.coordinator.clear()
+        OnCallBus.update(null)
+        RunningTimerBus.update(null)
+        MediaArtBus.update(null)
+        if (mutedReturns > 0) {
+            mutedReturns = 0
+            unmuteJob?.cancel()
+            unmuteJob = null
+            setEffectsMuted(false)
+        }
+        alerter.stop()
     }
 
     /** Clears the published binding state when Android disconnects this listener. */
@@ -164,6 +206,10 @@ class CutoutNotificationListenerService : NotificationListenerService() {
                     dismissNotifications = settings.dismissNotifications
                     displayWhileDnd = settings.displayWhileDnd
                     alertOnNotification = settings.alertOnNotification
+                    if (islandEnabled != settings.cutoutEnabled) {
+                        islandEnabled = settings.cutoutEnabled
+                        if (islandEnabled) seedIslandState() else clearIslandState()
+                    }
                 }
         }
     }
@@ -353,6 +399,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
     /** Routes a posted notification through specialized, native, semantic, then legacy paths. */
     override fun onNotificationPosted(sbn: StatusBarNotification?, rankingMap: RankingMap?) {
         val notification = sbn ?: return
+        if (!islandEnabled) return
 
         if (CallNotificationParser.isCall(notification)) {
             handleCall(notification)
@@ -470,6 +517,10 @@ class CutoutNotificationListenerService : NotificationListenerService() {
 
     /** Removes live and legacy state owned by a notification that left the framework. */
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        if (!islandEnabled) {
+            super.onNotificationRemoved(sbn)
+            return
+        }
         val removed = sbn
         if (removed != null) {
             NotificationMediaSessionRegistry.remove(removed.key)
@@ -694,7 +745,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
 
         /** Handles a user swipe of the island pill associated with [key]. */
         fun dismiss(key: String) {
-            instance?.run {
+            instance?.takeIf { it.islandEnabled }?.run {
                 markSuppressed(key)
                 discard(key, onlyIfHeld = false)
             }
@@ -702,7 +753,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
 
         /** Handles a user action on the island pill associated with [key]. */
         fun settle(key: String) {
-            instance?.run {
+            instance?.takeIf { it.islandEnabled }?.run {
                 markSuppressed(key)
                 discard(key, onlyIfHeld = true)
             }
@@ -710,7 +761,7 @@ class CutoutNotificationListenerService : NotificationListenerService() {
 
         /** Releases an unacted-on pill's held system notification back to the panel. */
         fun release(key: String) {
-            instance?.run {
+            instance?.takeIf { it.islandEnabled }?.run {
                 markSuppressed(key)
                 releaseHeld(key)
             }
