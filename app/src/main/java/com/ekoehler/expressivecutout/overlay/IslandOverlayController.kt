@@ -949,8 +949,9 @@ internal class IslandOverlayController(
      * read together.
      */
     private fun observeEventAnimatedIcons() {
-        scope.launch { eventPreferences.animatedIcons.collect { eventAnimatedIcons = it } }
-        scope.launch { eventPreferences.animatedIconLoops.collect { eventAnimatedIconLoops = it } }
+        val runtime = requireNotNull(islandRuntimeScope)
+        runtime.launch { eventPreferences.animatedIcons.collect { eventAnimatedIcons = it } }
+        runtime.launch { eventPreferences.animatedIconLoops.collect { eventAnimatedIconLoops = it } }
     }
 
     /** Mirrors the per-event colour overrides into [eventColors]. */
@@ -983,19 +984,21 @@ internal class IslandOverlayController(
      * collapsed cutout.
      */
     private fun observeAppPreferences() {
-        scope.launch { appPreferences.disabledPackages.collect { disabledApps = it } }
-        scope.launch { appPreferences.normalOnlyPackages.collect { normalOnlyApps = it } }
+        val runtime = requireNotNull(islandRuntimeScope)
+        runtime.launch { appPreferences.disabledPackages.collect { disabledApps = it } }
+        runtime.launch { appPreferences.normalOnlyPackages.collect { normalOnlyApps = it } }
     }
 
     /** Mirrors the permission-dot switch, its placement and each dot's colour into their states. */
     private fun observePermissionDotSettings() {
-        scope.launch { permissionDotPreferences.enabled.collect { permissionDotEnabledState.value = it } }
-        scope.launch { permissionDotPreferences.position.collect { permissionDotPositionState.value = it } }
-        scope.launch { permissionDotPreferences.colors.collect { permissionDotColorsState.value = it } }
-        scope.launch { permissionDotPreferences.vertical.collect { permissionDotVerticalState.value = it } }
+        val runtime = requireNotNull(islandRuntimeScope)
+        runtime.launch { permissionDotPreferences.enabled.collect { permissionDotEnabledState.value = it } }
+        runtime.launch { permissionDotPreferences.position.collect { permissionDotPositionState.value = it } }
+        runtime.launch { permissionDotPreferences.colors.collect { permissionDotColorsState.value = it } }
+        runtime.launch { permissionDotPreferences.vertical.collect { permissionDotVerticalState.value = it } }
         // A dot lighting up or going out changes how wide the pill is drawn, so the window has to
         // follow — the geometry flows above do the same by way of their own observers.
-        scope.launch {
+        runtime.launch {
             PermissionUsageMonitor.usage
                 .map { it.count }
                 .distinctUntilChanged()
