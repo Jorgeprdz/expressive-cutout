@@ -93,6 +93,17 @@ enum class BatteryPercentageMode {
     }
 }
 
+enum class StatusBarNotificationDisplayMode {
+    DOT,
+    ICONS,
+    HIDDEN;
+
+    companion object {
+        fun fromPersisted(raw: String?): StatusBarNotificationDisplayMode =
+            entries.firstOrNull { it.name == raw?.trim()?.uppercase() } ?: DOT
+    }
+}
+
 enum class IosBatteryColorMode {
     MONOCHROME,
     STATUS_COLOR;
@@ -121,6 +132,7 @@ data class CustomStatusBarSettings(
     val statusBarOffsetYDp: Float = 0f,
     val batteryPercentageMode: BatteryPercentageMode = BatteryPercentageMode.OFF,
     val iosBatteryColorMode: IosBatteryColorMode = IosBatteryColorMode.MONOCHROME,
+    val notificationDisplayMode: StatusBarNotificationDisplayMode = StatusBarNotificationDisplayMode.DOT,
 ) {
     fun sanitized(): CustomStatusBarSettings = copy(
         style = CustomStatusBarStyleUiPolicy.migrateLegacy(style),
@@ -141,6 +153,7 @@ data class CustomStatusBarSettings(
     fun withPixelDefaults(): CustomStatusBarSettings = DEFAULT.copy(
         enabled = enabled,
         appearance = appearance,
+        notificationDisplayMode = notificationDisplayMode,
     )
 
     companion object {
