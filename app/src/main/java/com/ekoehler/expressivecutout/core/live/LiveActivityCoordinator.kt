@@ -31,6 +31,13 @@ class LiveActivityCoordinator {
         if (activities.remove(stableId) != null) publish()
     }
 
+    /** Clears every registered activity and both projected slots. Safe to call repeatedly. */
+    fun clear() {
+        if (activities.isEmpty() && _state.value.isEmpty() && _slots.value == Slots()) return
+        activities.clear()
+        publish()
+    }
+
     /** Applies one source mutation to the registry. */
     fun apply(update: LiveActivityUpdate) {
         when (update) {
