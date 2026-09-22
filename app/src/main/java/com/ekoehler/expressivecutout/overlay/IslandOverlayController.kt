@@ -385,8 +385,7 @@ internal class IslandOverlayController(
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> screenOnState.value = false
                 Intent.ACTION_SCREEN_ON,
-                Intent.ACTION_USER_PRESENT,
-                -> screenOnState.value = true
+                Intent.ACTION_USER_PRESENT -> screenOnState.value = true
             }
             applyLockVisibility()
         }
