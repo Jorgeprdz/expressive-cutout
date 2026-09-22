@@ -20,6 +20,7 @@ internal interface WindowPolicyDumpTransport {
     suspend fun dumpWindowPolicy(): String?
     suspend fun dumpWindow(): String? = dumpWindowPolicy()
     fun changes(): Flow<SystemBarAppearanceSnapshot> = emptyFlow()
+    fun close() = Unit
 }
 
 internal data class WindowPolicySnapshotRead(
@@ -165,6 +166,24 @@ internal class ShizukuUserServiceWindowPolicyDumpTransport(
                             "${error.javaClass.simpleName}:${error.message}",
                     )
                 }
+        }
+    }
+
+    override fun close() {
+        val waiter = synchronized(lock) {
+            binding = false
+            pending.also { pending = null }
+        }
+        waiter?.complete(null)
+        remote.set(null)
+        runCatching {
+            Shizuku.unbindUserService(serviceArgs, connection, true)
+        }.onFailure { error ->
+            Log.d(
+                TAG,
+                "AUTO_APPEARANCE transport=user_service unbindFailure=" +
+                    "${error.javaClass.simpleName}:${error.message}",
+            )
         }
     }
 
