@@ -88,12 +88,16 @@ class CutoutAccessibilityService : AccessibilityService() {
             if (mediaPlayback == null) {
                 mediaPlayback = MediaPlaybackMonitor(this).also { it.start() }
             }
+        } else {
+            mediaPlayback?.stop()
+            mediaPlayback = null
+        }
+
+        if (state.islandWanted || state.statusBarWanted) {
             startNotificationListenerRecovery()
         } else {
             notificationRecoveryJob?.cancel()
             notificationRecoveryJob = null
-            mediaPlayback?.stop()
-            mediaPlayback = null
         }
 
         // Reconfigure the one shared observer set only when its consumers actually change.
@@ -133,7 +137,7 @@ class CutoutAccessibilityService : AccessibilityService() {
         notificationRecoveryJob = serviceScope.launch {
             CutoutNotificationListenerService.bound.collectLatest { listenerBound ->
                 if (listenerBound ||
-                    currentRuntimeState?.islandWanted != true ||
+                    currentRuntimeState?.let { !it.islandWanted && !it.statusBarWanted } != false ||
                     !Permissions.isNotificationAccessGranted(this@CutoutAccessibilityService)
                 ) {
                     return@collectLatest
@@ -142,7 +146,7 @@ class CutoutAccessibilityService : AccessibilityService() {
                 var retryDelayMs = INITIAL_REBIND_DELAY_MS
                 while (
                     isActive &&
-                    currentRuntimeState?.islandWanted == true &&
+                    currentRuntimeState?.let { it.islandWanted || it.statusBarWanted } == true &&
                     Permissions.isNotificationAccessGranted(this@CutoutAccessibilityService) &&
                     !CutoutNotificationListenerService.bound.value
                 ) {
@@ -207,11 +211,11 @@ class CutoutAccessibilityService : AccessibilityService() {
         val pkg = ev.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
 
         if (ev.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            if (currentRuntimeState?.islandWanted == true) ForegroundAppBus.update(pkg)
+            if (currentRuntimeState?.let { it.islandWanted || it.statusBarWanted } == true) ForegroundAppBus.update(pkg)
             if (currentRuntimeState?.statusBarWanted == true) scheduleStatusBarAppearanceReconcile()
         }
 
-        if (currentRuntimeState?.islandWanted != true) return
+        if (currentRuntimeState?.let { !it.islandWanted && !it.statusBarWanted } != false) return
 
         if (isAssistantPackage(pkg)) {
             inspectAssistantWindow(pkg, ev)
