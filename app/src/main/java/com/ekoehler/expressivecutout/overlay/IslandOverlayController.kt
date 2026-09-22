@@ -98,6 +98,7 @@ import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceResolver
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutEngine
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutInput
 import com.ekoehler.expressivecutout.statusbar.StatusBarRect
+import com.ekoehler.expressivecutout.statusbar.StatusBarNotificationStore
 import com.ekoehler.expressivecutout.statusbar.StatusBarSystemTheme
 import com.ekoehler.expressivecutout.system.PermissionUsageMonitor
 import com.ekoehler.expressivecutout.system.StatusBarIconController
@@ -816,6 +817,8 @@ internal class IslandOverlayController(
                 val customAppearanceMode by customStatusBarController.appearanceMode.collectAsStateWithLifecycle()
                 val customDeviceState by CustomStatusBarDeviceStateStore.state.collectAsStateWithLifecycle()
                 val customStatusBarSettings by customStatusBarController.settings.collectAsStateWithLifecycle()
+                val statusBarNotifications by StatusBarNotificationStore.entries.collectAsStateWithLifecycle()
+                val liveSlotsForStatusBar by LiveActivityRegistry.coordinator.slots.collectAsStateWithLifecycle()
                 val currentSystemBarAppearance by customStatusBarController.systemAppearance.collectAsStateWithLifecycle()
                 val isExpandedForStatusBar by expandedState.collectAsStateWithLifecycle()
                 val islandRuntimeEnabled by islandRuntimeEnabledState.collectAsStateWithLifecycle()
@@ -881,12 +884,33 @@ internal class IslandOverlayController(
                                         "fallbackUsed=${leftResolution.provenance == StatusBarAppearanceProvenance.THEME_FALLBACK || rightResolution.provenance == StatusBarAppearanceProvenance.THEME_FALLBACK}",
                                 )
                             }
+                            val visibleLiveStableIds = buildSet {
+                                if (islandRuntimeEnabled) {
+                                    event?.stableId?.let(::add)
+                                    if (satellite != null && !isExpandedForStatusBar) {
+                                        satellite.stableId?.let(::add)
+                                    }
+                                }
+                            }
+                            val representedNotificationKeys = buildSet {
+                                listOfNotNull(
+                                    liveSlotsForStatusBar.primary,
+                                    liveSlotsForStatusBar.satellite,
+                                ).forEach { activity ->
+                                    if (activity.stableId in visibleLiveStableIds) {
+                                        activity.notificationKey?.let(::add)
+                                    }
+                                }
+                            }
                             PixelStatusBarLayer(
                                 state = customDeviceState,
                                 leftForeground = leftResolution.foreground,
                                 rightForeground = rightResolution.foreground,
                                 layout = statusLayout,
                                 settings = customStatusBarSettings,
+                                notifications = statusBarNotifications,
+                                representedNotificationKeys = representedNotificationKeys,
+                                ownPackageName = context.packageName,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
