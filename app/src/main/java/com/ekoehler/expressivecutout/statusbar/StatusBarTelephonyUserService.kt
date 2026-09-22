@@ -1,5 +1,6 @@
 package com.ekoehler.expressivecutout.statusbar
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.telephony.SubscriptionManager
@@ -29,6 +30,10 @@ class StatusBarTelephonyUserService() : IStatusBarTelephonyUserService.Stub() {
         appContext = context.applicationContext
     }
 
+    // This code runs in the Shizuku UserService process under its privileged identity, not under
+    // the APK application's manifest-granted permissions. Requesting READ_PHONE_STATE in the app
+    // would be both unnecessary and misleading, so suppress the app-process lint model locally.
+    @SuppressLint("MissingPermission")
     override fun readDisplayInfo(): IntArray {
         val context = appContext ?: return intArrayOf(UNKNOWN, OVERRIDE_NONE)
         val base = context.getSystemService(TelephonyManager::class.java)
