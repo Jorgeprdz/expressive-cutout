@@ -65,8 +65,6 @@ import com.ekoehler.expressivecutout.data.GlobalAction
 import com.ekoehler.expressivecutout.data.HorizontalCutoutMode
 import com.ekoehler.expressivecutout.data.SatellitePosition
 import com.ekoehler.expressivecutout.data.CutoutColor
-import com.ekoehler.expressivecutout.data.CustomStatusBarAppearancePreference
-import com.ekoehler.expressivecutout.data.CustomStatusBarSettings
 import com.ekoehler.expressivecutout.data.DynamicRole
 import com.ekoehler.expressivecutout.data.DynamicTilePreferences
 import com.ekoehler.expressivecutout.data.EventPreferences
@@ -87,25 +85,19 @@ import com.ekoehler.expressivecutout.data.PhoneTilePreferences
 import com.ekoehler.expressivecutout.data.PhoneTileSettings
 import com.ekoehler.expressivecutout.data.TimerTilePreferences
 import com.ekoehler.expressivecutout.data.TimerTileSettings
-import com.ekoehler.expressivecutout.data.StatusBarPreferences
 import com.ekoehler.expressivecutout.service.CutoutNotificationListenerService
 import com.ekoehler.expressivecutout.service.ProgressData
-import com.ekoehler.expressivecutout.statusbar.CustomStatusBarActivationPolicy
+import com.ekoehler.expressivecutout.statusbar.CustomStatusBarController
 import com.ekoehler.expressivecutout.statusbar.CustomStatusBarDeviceStateStore
 import com.ekoehler.expressivecutout.statusbar.IslandOccupancy
 import com.ekoehler.expressivecutout.statusbar.PixelStatusBarLayer
-import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceMode
 import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceProvenance
 import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceResolver
-import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceState
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutEngine
 import com.ekoehler.expressivecutout.statusbar.StatusBarLayoutInput
 import com.ekoehler.expressivecutout.statusbar.StatusBarRect
 import com.ekoehler.expressivecutout.statusbar.StatusBarSystemTheme
 import com.ekoehler.expressivecutout.system.PermissionUsageMonitor
-import com.ekoehler.expressivecutout.system.ShizukuState
-import com.ekoehler.expressivecutout.system.ShizukuStatus
-import com.ekoehler.expressivecutout.system.StatusBarDisableOwner
 import com.ekoehler.expressivecutout.system.StatusBarIconController
 import com.ekoehler.expressivecutout.ui.theme.ExpressiveCutoutTheme
 import kotlinx.coroutines.CoroutineScope
@@ -141,7 +133,6 @@ import kotlin.math.roundToInt
  */
 internal class IslandOverlayController(
     private val context: Context,
-    private val systemBarAppearance: kotlinx.coroutines.flow.StateFlow<StatusBarAppearanceState?>,
 ) {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
@@ -161,7 +152,6 @@ internal class IslandOverlayController(
     private val assistantTilePreferences = AssistantTilePreferences(context)
     private val appPreferences = AppPreferences(context)
     private val permissionDotPreferences = PermissionDotPreferences(context)
-    private val statusBarPreferences = StatusBarPreferences(context)
     private val density = context.resources.displayMetrics.density
 
     /**
@@ -199,10 +189,11 @@ internal class IslandOverlayController(
      */
     private val rotationSnapState = MutableStateFlow(false)
     private val expandedState = MutableStateFlow(false)
-    private val customStatusBarRenderState = MutableStateFlow(false)
-    private val customStatusBarAppearanceModeState = MutableStateFlow(StatusBarAppearanceMode.AUTO)
-    private val customStatusBarSettingsState = MutableStateFlow(CustomStatusBarSettings.DEFAULT)
     private val customStatusBarLockedState = MutableStateFlow(false)
+    private val customStatusBarController =
+        CustomStatusBarController(context, orientationState, customStatusBarLockedState)
+    private val islandRuntimeEnabledState = MutableStateFlow(false)
+    private var islandRuntimeScope: CoroutineScope? = null
 
     private val displayHeightPx: Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -392,6 +383,30 @@ internal class IslandOverlayController(
         lifecycleOwner.onCreate()
         addOverlay()
         registerLockReceiver()
+        customStatusBarController.start()
+        scope.launch {
+            customStatusBarController.render.collect {
+                syncWindowSize()
+                applyLockVisibility()
+            }
+        }
+    }
+
+    /**
+     * Starts or stops every Island-owned collector while keeping the shared overlay and Custom
+     * Status Bar alive when they are still needed.
+     */
+    fun setIslandRuntimeEnabled(enabled: Boolean) {
+        if (islandRuntimeEnabledState.value == enabled) return
+        islandRuntimeEnabledState.value = enabled
+        if (enabled) startIslandRuntime() else stopIslandRuntime()
+        syncWindowSize()
+        applyLockVisibility()
+    }
+
+    private fun startIslandRuntime() {
+        if (islandRuntimeScope != null) return
+        islandRuntimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         observeIconPreferences()
         observeLayout()
         observeBehaviour()
@@ -419,7 +434,28 @@ internal class IslandOverlayController(
         observeSignals()
         observeVisibility()
         observeMirroredKey()
-        observeCustomStatusBar()
+    }
+
+    private fun stopIslandRuntime() {
+        val runtime = islandRuntimeScope ?: return
+        islandRuntimeScope = null
+        mirroredKey?.let { CutoutNotificationListenerService.release(it) }
+        mirroredKey = null
+        runtime.cancel()
+        satelliteDismissJob?.cancel()
+        dismissJob?.cancel()
+        forcedExpanded.value = null
+        expandedState.value = false
+        currentEvent.value = null
+        satelliteEvent.value = null
+        liveVisualState.value = LiveActivityVisualState()
+        liveTransitionState.value = LiveActivityVisualTransition.NONE
+        projectedLivePrimary = null
+        projectedLiveSatellite = null
+        liveEventCache.clear()
+        LiveActivityRegistry.coordinator.clear()
+        StatusBarIconController.clearTransientStatusIconSuppression()
+        setTouchable(false)
     }
 
     /**
@@ -435,7 +471,8 @@ internal class IslandOverlayController(
         dismissJob?.cancel()
         windowResizeJob?.cancel()
         StatusBarIconController.clearTransientStatusIconSuppression()
-        StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+        stopIslandRuntime()
+        customStatusBarController.stop()
         runCatching { context.unregisterReceiver(lockReceiver) }
         removeOverlay()
         lifecycleOwner.onDestroy()
@@ -468,12 +505,14 @@ internal class IslandOverlayController(
         val isDeviceLockedActual = keyguardManager?.isDeviceLocked == true
         isDeviceLocked = isDeviceLockedActual
         customStatusBarLockedState.value = isDeviceLockedActual
-        val shouldHideLock = behaviourState.value.hideOnLockscreen && isKeyguardLocked
+        val islandEnabled = islandRuntimeEnabledState.value
+        val shouldHideLock = islandEnabled && behaviourState.value.hideOnLockscreen && isKeyguardLocked
         val isLandscapeHidden = behaviourState.value.horizontalCutoutMode == HorizontalCutoutMode.HIDDEN ||
             behaviourState.value.hideInLandscape
-        val shouldHideLandscape = isLandscapeHidden &&
+        val shouldHideLandscape = islandEnabled && isLandscapeHidden &&
             currentOrientation == Configuration.ORIENTATION_LANDSCAPE
-        val shouldHide = shouldHideLock || shouldHideLandscape
+        val islandNeedsHide = !islandEnabled || shouldHideLock || shouldHideLandscape
+        val shouldHide = islandNeedsHide && !customStatusBarController.render.value
 
         when {
             shouldHide && !overlayHidden -> {
@@ -705,12 +744,13 @@ internal class IslandOverlayController(
                 val permissionDotVertical by permissionDotVerticalState.collectAsStateWithLifecycle()
                 // The dot settings screen shows every enabled dot here, switch on or not.
                 val permissionDotPreview by PermissionDotPreviewBus.active.collectAsStateWithLifecycle()
-                val customStatusBarVisible by customStatusBarRenderState.collectAsStateWithLifecycle()
-                val customAppearanceMode by customStatusBarAppearanceModeState.collectAsStateWithLifecycle()
+                val customStatusBarVisible by customStatusBarController.render.collectAsStateWithLifecycle()
+                val customAppearanceMode by customStatusBarController.appearanceMode.collectAsStateWithLifecycle()
                 val customDeviceState by CustomStatusBarDeviceStateStore.state.collectAsStateWithLifecycle()
-                val customStatusBarSettings by customStatusBarSettingsState.collectAsStateWithLifecycle()
-                val currentSystemBarAppearance by systemBarAppearance.collectAsStateWithLifecycle()
+                val customStatusBarSettings by customStatusBarController.settings.collectAsStateWithLifecycle()
+                val currentSystemBarAppearance by customStatusBarController.systemAppearance.collectAsStateWithLifecycle()
                 val isExpandedForStatusBar by expandedState.collectAsStateWithLifecycle()
+                val islandRuntimeEnabled by islandRuntimeEnabledState.collectAsStateWithLifecycle()
                 val isNoExpandLandscape = orientation == Configuration.ORIENTATION_LANDSCAPE &&
                     (behaviour.horizontalCutoutMode == HorizontalCutoutMode.NORMAL_ONLY ||
                      behaviour.horizontalCutoutMode == HorizontalCutoutMode.STICK_TO_CAMERA)
@@ -722,8 +762,9 @@ internal class IslandOverlayController(
                 ExpressiveCutoutTheme {
                     Box(modifier = Modifier.fillMaxSize()) {
                         if (customStatusBarVisible) {
-                            val islandVisible = event != null ||
-                                (behaviour.showsWhenEmpty && behaviour.cutoutEnabled)
+                            val islandVisible = islandRuntimeEnabled && (
+                                event != null || (behaviour.showsWhenEmpty && behaviour.cutoutEnabled)
+                            )
                             val statusLayout = customStatusBarLayout(
                                 hostView,
                                 islandVisible = islandVisible,
@@ -782,7 +823,8 @@ internal class IslandOverlayController(
                             )
                         }
 
-                        DynamicIsland(
+                        if (islandRuntimeEnabled) {
+                            DynamicIsland(
                         event = event,
                         collapsed = layout.collapsed,
                         expanded = layout.expanded,
@@ -834,6 +876,7 @@ internal class IslandOverlayController(
                         onReplyActiveChange = ::onReplyActive,
                         onDismiss = ::onDismiss,
                     )
+                        }
                     }
                 }
             }
@@ -855,43 +898,8 @@ internal class IslandOverlayController(
         insetsListener = null
     }
 
-    /** Holds native suppression before exposing the visual layer, so duplicate bars never linger. */
-    private fun observeCustomStatusBar() = scope.launch {
-        combine(
-            statusBarPreferences.customStatusBarSettings,
-            ShizukuState.status,
-            orientationState,
-            customStatusBarLockedState,
-        ) { settings, shizuku, orientation, locked ->
-            CustomStatusBarWish(settings, shizuku, orientation, locked)
-        }.distinctUntilChanged().collect { wish ->
-            customStatusBarSettingsState.value = wish.settings
-            customStatusBarAppearanceModeState.value = when (wish.settings.appearance) {
-                CustomStatusBarAppearancePreference.AUTO -> StatusBarAppearanceMode.AUTO
-                CustomStatusBarAppearancePreference.LIGHT -> StatusBarAppearanceMode.FORCE_LIGHT_FOREGROUND
-                CustomStatusBarAppearancePreference.DARK -> StatusBarAppearanceMode.FORCE_DARK_FOREGROUND
-            }
-            val decision = CustomStatusBarActivationPolicy.decide(
-                enabled = wish.settings.enabled && !wish.locked,
-                shizukuReady = wish.shizuku == ShizukuStatus.READY,
-                portraitSupported = wish.orientation == Configuration.ORIENTATION_PORTRAIT,
-            )
-            val applied = decision.nativeRequest?.let { request ->
-                StatusBarIconController.setOwnerRequest(
-                    StatusBarDisableOwner.CUSTOM_STATUS_BAR,
-                    request,
-                )
-            } ?: run {
-                StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
-                false
-            }
-            customStatusBarRenderState.value = decision.canRender && applied
-            syncWindowSize()
-        }
-    }
-
     /** Mirrors the user's per-event icon overrides into [customIcons]. */
-    private fun observeIconPreferences() = scope.launch {
+    private fun observeIconPreferences() = requireNotNull(islandRuntimeScope).launch {
         iconPreferences.customIcons.collect { customIcons = it }
     }
 
@@ -899,7 +907,7 @@ internal class IslandOverlayController(
      * Mirrors the behaviour settings, applying lock visibility as they arrive so a toggle takes
      * effect at once rather than at the next lock.
      */
-    private fun observeBehaviour() = scope.launch {
+    private fun observeBehaviour() = requireNotNull(islandRuntimeScope).launch {
         behaviourPreferences.settings.collect {
             behaviourState.value = it
             if (!it.cutoutEnabled) {
@@ -914,7 +922,7 @@ internal class IslandOverlayController(
      * Mirrors the appearance settings, re-syncing the window because the action-button height feeds
      * the expanded window's size.
      */
-    private fun observeAppearance() = scope.launch {
+    private fun observeAppearance() = requireNotNull(islandRuntimeScope).launch {
         appearancePreferences.settings.collect {
             appearanceState.value = it
             // The action-button height feeds the expanded window's extra room; keep them in step.
@@ -923,12 +931,12 @@ internal class IslandOverlayController(
     }
 
     /** Mirrors the per-event enabled switches into [eventEnabled]. */
-    private fun observeEventPreferences() = scope.launch {
+    private fun observeEventPreferences() = requireNotNull(islandRuntimeScope).launch {
         eventPreferences.enabled.collect { eventEnabled = it }
     }
 
     /** Mirrors the per-event duration overrides into [eventDurations]. */
-    private fun observeEventDurations() = scope.launch {
+    private fun observeEventDurations() = requireNotNull(islandRuntimeScope).launch {
         eventPreferences.durations.collect { eventDurations = it }
     }
 
@@ -942,27 +950,27 @@ internal class IslandOverlayController(
     }
 
     /** Mirrors the per-event colour overrides into [eventColors]. */
-    private fun observeEventColors() = scope.launch {
+    private fun observeEventColors() = requireNotNull(islandRuntimeScope).launch {
         eventPreferences.colors.collect { eventColors = it }
     }
 
     /** Mirrors whether events take their colour from Material You into [eventDynamicColor]. */
-    private fun observeEventDynamicColor() = scope.launch {
+    private fun observeEventDynamicColor() = requireNotNull(islandRuntimeScope).launch {
         eventPreferences.dynamicColor.collect { eventDynamicColor = it }
     }
 
     /** Mirrors which Material You role events use into [eventDynamicColorRole]. */
-    private fun observeEventDynamicColorRole() = scope.launch {
+    private fun observeEventDynamicColorRole() = requireNotNull(islandRuntimeScope).launch {
         eventPreferences.dynamicColorRole.collect { eventDynamicColorRole = it }
     }
 
     /** Mirrors the Material You colour opacity into [eventDynamicColorOpacity]. */
-    private fun observeEventDynamicColorOpacity() = scope.launch {
+    private fun observeEventDynamicColorOpacity() = requireNotNull(islandRuntimeScope).launch {
         eventPreferences.dynamicColorOpacity.collect { eventDynamicColorOpacity = it }
     }
 
     /** Mirrors which dynamic tiles are enabled into [tileEnabled]. */
-    private fun observeTilePreferences() = scope.launch {
+    private fun observeTilePreferences() = requireNotNull(islandRuntimeScope).launch {
         dynamicTilePreferences.enabled.collect { tileEnabled = it }
     }
 
@@ -995,7 +1003,7 @@ internal class IslandOverlayController(
      * Mirrors the music tile settings, re-applying player-app visibility so that toggle takes
      * effect mid-playback.
      */
-    private fun observeMusicSettings() = scope.launch {
+    private fun observeMusicSettings() = requireNotNull(islandRuntimeScope).launch {
         musicTilePreferences.settings.collect {
             musicSettings = it
             // Toggling "Visible in player app" should take effect immediately, even mid-playback.
@@ -1004,17 +1012,17 @@ internal class IslandOverlayController(
     }
 
     /** Mirrors the phone tile settings into [phoneSettings]. */
-    private fun observePhoneSettings() = scope.launch {
+    private fun observePhoneSettings() = requireNotNull(islandRuntimeScope).launch {
         phoneTilePreferences.settings.collect { phoneSettings = it }
     }
 
     /** Mirrors the timer tile settings into [timerSettings]. */
-    private fun observeTimerSettings() = scope.launch {
+    private fun observeTimerSettings() = requireNotNull(islandRuntimeScope).launch {
         timerTilePreferences.settings.collect { timerSettings = it }
     }
 
     /** Mirrors the assistant tile settings into [assistantSettings]. */
-    private fun observeAssistantSettings() = scope.launch {
+    private fun observeAssistantSettings() = requireNotNull(islandRuntimeScope).launch {
         assistantTilePreferences.settings.collect { assistantSettings = it }
     }
 
@@ -1023,7 +1031,7 @@ internal class IslandOverlayController(
      * something is playing we hold the (already-shown) music pill open indefinitely; when it pauses
      * or the session ends we hand it back to the normal auto-dismiss timer so it fades out.
      */
-    private fun observeNowPlaying() = scope.launch {
+    private fun observeNowPlaying() = requireNotNull(islandRuntimeScope).launch {
         NowPlayingBus.state.collect { now ->
             musicPlaying = now?.isPlaying == true
             pruneSatellite()
@@ -1043,7 +1051,7 @@ internal class IslandOverlayController(
      * "Visible in player app" option). The package name arrives from the accessibility service's
      * window-state-changed events; no window content is read.
      */
-    private fun observeForegroundApp() = scope.launch {
+    private fun observeForegroundApp() = requireNotNull(islandRuntimeScope).launch {
         ForegroundAppBus.packageName.collect { pkg ->
             foregroundPackage = pkg
             applyPlayerAppVisibility()
@@ -1148,7 +1156,7 @@ internal class IslandOverlayController(
      * call is "active" while the dialer's notification exists ([OnCallBus] non-null); when it ends we
      * hand the pill back to the normal auto-dismiss timer so it fades out. Mirrors [observeNowPlaying].
      */
-    private fun observeOnCall() = scope.launch {
+    private fun observeOnCall() = requireNotNull(islandRuntimeScope).launch {
         OnCallBus.state.collect { call ->
             callActive = call != null
             if (callActive) {
@@ -1175,7 +1183,7 @@ internal class IslandOverlayController(
      * non-null); when it is reset or finishes we hand the pill back to the normal auto-dismiss timer.
      * Mirrors [observeOnCall].
      */
-    private fun observeRunningTimer() = scope.launch {
+    private fun observeRunningTimer() = requireNotNull(islandRuntimeScope).launch {
         RunningTimerBus.state.collect { timer ->
             timerActive = timer != null
             pruneSatellite()
@@ -1215,7 +1223,7 @@ internal class IslandOverlayController(
      * Mirrors the island geometry, re-sizing the window as it changes so a slider drag in settings
      * is visible live.
      */
-    private fun observeLayout() = scope.launch {
+    private fun observeLayout() = requireNotNull(islandRuntimeScope).launch {
         layoutPreferences.layout.collect { layout ->
             layoutState.value = layout
             syncWindowSize()
@@ -1229,7 +1237,7 @@ internal class IslandOverlayController(
      * unaffected; the pill's own footprint does stop passing touches through.
      * While a preview is pinned (in settings), touches are disabled so settings controls remain interactive.
      */
-    private fun observeVisibility() = scope.launch {
+    private fun observeVisibility() = requireNotNull(islandRuntimeScope).launch {
         combine(currentEvent, behaviourState, ::Pair).collect { (event, behaviour) ->
             setTouchable(
                 !previewPinned && (event != null || satelliteEvent.value != null ||
@@ -1249,7 +1257,7 @@ internal class IslandOverlayController(
      * route, having already told it to throw the notification away instead; this then finds nothing
      * left to release.
      */
-    private fun observeMirroredKey() = scope.launch {
+    private fun observeMirroredKey() = requireNotNull(islandRuntimeScope).launch {
         currentEvent.collect { event ->
             val key = event?.notificationKey
             val previous = mirroredKey
@@ -1492,12 +1500,12 @@ internal class IslandOverlayController(
         }
         val bonus = currentHeightBonusDp(expanded)
         val islandHeight = ((dims.offsetYDp + dims.heightDp + bonus + WINDOW_MARGIN_DP) * density).toInt()
-        return if (customStatusBarRenderState.value) maxOf(islandHeight, statusBarHeightPx()) else islandHeight
+        return if (customStatusBarController.render.value) maxOf(islandHeight, statusBarHeightPx()) else islandHeight
     }
 
     /** Wide enough for whichever state is widest — used for the initial, safe window size. */
     private fun windowWidthPx(layout: IslandLayout): Int {
-        if (customStatusBarRenderState.value &&
+        if (customStatusBarController.render.value &&
             currentOrientation == Configuration.ORIENTATION_PORTRAIT
         ) {
             return displayWidthPx
@@ -1910,7 +1918,7 @@ internal class IslandOverlayController(
     }
 
     /** While pinned (settings open), keep a persistent preview matching the tab being edited. */
-    private fun observePreviewPin() = scope.launch {
+    private fun observePreviewPin() = requireNotNull(islandRuntimeScope).launch {
         combine(IslandPreviewBus.active, IslandPreviewBus.expandedPreview, ::Pair)
             .collect { (pinned, expandedTab) ->
                 previewPinned = pinned
@@ -1985,7 +1993,7 @@ internal class IslandOverlayController(
 
 
     /** Collects the coordinator once; it alone decides persistent primary/satellite placement. */
-    private fun observeLiveActivitySlots() = scope.launch {
+    private fun observeLiveActivitySlots() = requireNotNull(islandRuntimeScope).launch {
         LiveActivityRegistry.coordinator.slots.collect(::updateLiveSlots)
     }
 
@@ -2263,7 +2271,7 @@ internal class IslandOverlayController(
      * The single consumer of [IslandEventBus]: turns each signal into a pill or a live tile,
      * honouring the per-event and per-tile switches the user set.
      */
-    private fun observeSignals() = scope.launch {
+    private fun observeSignals() = requireNotNull(islandRuntimeScope).launch {
         IslandEventBus.signals.collect { signal ->
             // Skip system events the user disabled for the pill.
             if (signal is CutoutSignal.System && eventEnabled[signal.type] == false) return@collect
@@ -2964,7 +2972,7 @@ internal class IslandOverlayController(
                 cutoutBounds = view.rootWindowInsets?.displayCutout?.boundingRects
                     ?.maxByOrNull { it.width() * it.height() }
                     ?.let { StatusBarRect(it.left, it.top, it.right, it.bottom) },
-                collapsedIslandBounds = if (islandVisible && !expandedState.value) {
+                collapsedIslandBounds = if (islandRuntimeEnabledState.value && islandVisible && !expandedState.value) {
                     pillTouchRect(
                         view.width.takeIf { it > 0 } ?: displayWidthPx,
                         view.height.takeIf { it > 0 } ?: statusBarHeightPx(),
@@ -2972,7 +2980,7 @@ internal class IslandOverlayController(
                 } else {
                     null
                 },
-                expandedIslandBounds = if (islandVisible && expandedState.value) {
+                expandedIslandBounds = if (islandRuntimeEnabledState.value && islandVisible && expandedState.value) {
                     pillTouchRect(
                         view.width.takeIf { it > 0 } ?: displayWidthPx,
                         view.height.takeIf { it > 0 } ?: statusBarHeightPx(),
@@ -2980,7 +2988,7 @@ internal class IslandOverlayController(
                 } else {
                     null
                 },
-                satelliteBounds = if (satelliteVisible) {
+                satelliteBounds = if (islandRuntimeEnabledState.value && satelliteVisible) {
                     satelliteTouchRect(
                         view.width.takeIf { it > 0 } ?: displayWidthPx,
                         view.height.takeIf { it > 0 } ?: statusBarHeightPx(),
@@ -2990,13 +2998,6 @@ internal class IslandOverlayController(
                 },
             ),
         ),
-    )
-
-    private data class CustomStatusBarWish(
-        val settings: CustomStatusBarSettings,
-        val shizuku: ShizukuStatus,
-        val orientation: Int,
-        val locked: Boolean,
     )
 
     private fun buildLayoutParams(): WindowManager.LayoutParams {
