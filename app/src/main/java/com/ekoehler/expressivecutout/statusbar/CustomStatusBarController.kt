@@ -64,8 +64,10 @@ internal class CustomStatusBarController(
     private var controlJob: Job? = null
     private var appearanceJob: Job? = null
     private var nativeSuppressionApplied = false
+    private var stopRequested = false
 
     fun start() {
+        stopRequested = false
         if (runtimeScope != null) return
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         runtimeScope = scope
@@ -90,8 +92,31 @@ internal class CustomStatusBarController(
         scope.launch { appearanceController.reconcile() }
     }
 
-    fun stop() {
+    /**
+     * Requests a normal feature shutdown. If Shizuku is unavailable while a native suppression
+     * lease is known to be active, the visual renderer must stay alive until that lease can be
+     * released; otherwise the user would see an empty status-bar region.
+     *
+     * @return true when all Custom Status Bar runtime resources are already stopped.
+     */
+    fun requestStop(): Boolean {
+        stopRequested = true
         StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+        if (ShizukuState.status.value != ShizukuStatus.READY && nativeSuppressionApplied) {
+            return false
+        }
+        finishStop()
+        return true
+    }
+
+    /** Forced teardown used when the accessibility host itself is going away. */
+    fun stop() {
+        stopRequested = true
+        StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+        finishStop()
+    }
+
+    private fun finishStop() {
         nativeSuppressionApplied = false
         _render.value = false
         appearanceJob?.cancel()
@@ -131,20 +156,41 @@ internal class CustomStatusBarController(
             appearanceJob?.cancel()
             appearanceJob = null
 
-            // We cannot issue disable(0) after Shizuku disappears. If a native suppression lease
-            // was already applied, keep the matching renderer visible rather than leave a blank
-            // status bar. The owner request is retained so StatusBarIconController re-applies it
-            // when Shizuku reconnects. If the user turned the feature off while disconnected,
-            // release the local owner now so reconnect clears the native lease before we hide.
-            if (!wish.settings.enabled) {
-                StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+            if (nativeSuppressionApplied) {
+                if (wish.settings.enabled && !stopRequested) {
+                    // requestStop may have removed this owner while disconnected. Re-add the
+                    // desired lease if the user turns the feature back on before Shizuku returns;
+                    // setOwnerRequest remembers it even though it cannot transact yet.
+                    CustomStatusBarActivationPolicy.decide(
+                        enabled = true,
+                        shizukuReady = true,
+                        portraitSupported = true,
+                    ).nativeRequest?.let { request ->
+                        StatusBarIconController.setOwnerRequest(
+                            StatusBarDisableOwner.CUSTOM_STATUS_BAR,
+                            request,
+                        )
+                    }
+                } else {
+                    // Forget the local owner now so StatusBarIconController clears the real native
+                    // lease as soon as Shizuku reconnects.
+                    StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+                }
             }
+
+            // Safety wins over the requested OFF state until native SystemUI can be restored.
             _render.value = CustomStatusBarDisconnectPolicy.keepRenderer(
                 nativeSuppressionApplied = nativeSuppressionApplied,
-                enabled = visibleWanted,
-                locked = false,
+                enabled = nativeSuppressionApplied,
+                locked = wish.locked || !wish.screenOn,
                 portraitSupported = portraitSupported,
             )
+            return
+        }
+
+        if (stopRequested) {
+            StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+            finishStop()
             return
         }
 
