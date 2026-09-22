@@ -70,6 +70,7 @@ class CutoutAccessibilityService : AccessibilityService() {
                 overlay = IslandOverlayController(this).also { it.start() }
             }
             overlay?.setIslandRuntimeEnabled(state.islandWanted)
+            overlay?.setCustomStatusBarRuntimeEnabled(state.statusBarWanted)
         } else {
             overlay?.stop()
             overlay = null
