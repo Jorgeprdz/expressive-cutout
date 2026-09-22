@@ -564,7 +564,18 @@ internal class IslandOverlayController(
         val shouldHideLandscape = islandEnabled && isLandscapeHidden &&
             currentOrientation == Configuration.ORIENTATION_LANDSCAPE
         val islandNeedsHide = !islandEnabled || shouldHideLock || shouldHideLandscape
-        val shouldHide = islandNeedsHide && !customStatusBarController.render.value
+        val statusBarNeedsHost =
+            customStatusBarController.render.value ||
+                (
+                    customStatusBarRuntimeEnabled &&
+                        screenOnState.value &&
+                        !isDeviceLockedActual &&
+                        currentOrientation == Configuration.ORIENTATION_PORTRAIT
+                )
+        // Keep the one shared window mounted while Status Bar is desired and eligible, even during
+        // the brief Shizuku/DataStore reconcile before its renderer flips true. The window starts
+        // NOT_TOUCHABLE, so this avoids a remove/add startup flash without blocking gestures.
+        val shouldHide = islandNeedsHide && !statusBarNeedsHost
 
         when {
             shouldHide && !overlayHidden -> {
