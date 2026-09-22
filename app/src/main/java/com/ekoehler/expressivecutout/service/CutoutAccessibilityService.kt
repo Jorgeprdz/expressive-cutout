@@ -11,10 +11,6 @@ import com.ekoehler.expressivecutout.core.IslandEventBus
 import com.ekoehler.expressivecutout.events.MediaPlaybackMonitor
 import com.ekoehler.expressivecutout.events.SystemEventMonitor
 import com.ekoehler.expressivecutout.overlay.IslandOverlayController
-import com.ekoehler.expressivecutout.statusbar.ShizukuWindowAppearanceSource
-import com.ekoehler.expressivecutout.statusbar.StatusBarAppearanceController
-import com.ekoehler.expressivecutout.system.ShizukuState
-import com.ekoehler.expressivecutout.system.ShizukuStatus
 import com.ekoehler.expressivecutout.permissions.Permissions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,10 +37,9 @@ class CutoutAccessibilityService : AccessibilityService() {
     private var overlay: IslandOverlayController? = null
     private var systemEvents: SystemEventMonitor? = null
     private var mediaPlayback: MediaPlaybackMonitor? = null
-    private var statusBarAppearanceController: StatusBarAppearanceController? = null
-    private var statusBarAppearanceJob: Job? = null
+    private var runtimeCoordinator: TopAreaRuntimeCoordinator? = null
+    private var currentRuntimeState: TopAreaRuntimeState? = null
     private var statusBarAppearanceReconcileJob: Job? = null
-    private var shizukuAppearanceJob: Job? = null
     private var lastAssistantKey: String? = null
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -56,25 +51,51 @@ class CutoutAccessibilityService : AccessibilityService() {
      */
     override fun onServiceConnected() {
         super.onServiceConnected()
-        val appearanceController = StatusBarAppearanceController(
-            ShizukuWindowAppearanceSource(this),
-        )
-        statusBarAppearanceController = appearanceController
-        statusBarAppearanceJob = appearanceController.start(serviceScope)
-        shizukuAppearanceJob = serviceScope.launch {
-            ShizukuState.status.collectLatest { status ->
-                if (status == ShizukuStatus.READY) appearanceController.reconcile()
-            }
-        }
-        systemEvents = SystemEventMonitor(this).also { it.start() }
-        overlay = IslandOverlayController(this, appearanceController.state).also { it.start() }
-        statusBarAppearanceReconcileJob = serviceScope.launch {
-            appearanceController.reconcile()
-        }
-        mediaPlayback = MediaPlaybackMonitor(this).also { it.start() }
         instance = this
         _bound.value = true
-        startNotificationListenerRecovery()
+        runtimeCoordinator = TopAreaRuntimeCoordinator(
+            context = this,
+            scope = serviceScope,
+            onStateChanged = ::reconcileTopAreaRuntime,
+        ).also { it.start() }
+    }
+
+    /** Applies only lifecycle changes required by the new two-module truth table. */
+    private fun reconcileTopAreaRuntime(state: TopAreaRuntimeState) {
+        currentRuntimeState = state
+
+        if (state.overlayWanted) {
+            if (overlay == null) {
+                overlay = IslandOverlayController(this).also { it.start() }
+            }
+            overlay?.setIslandRuntimeEnabled(state.islandWanted)
+        } else {
+            overlay?.stop()
+            overlay = null
+        }
+
+        if (state.islandWanted) {
+            if (mediaPlayback == null) {
+                mediaPlayback = MediaPlaybackMonitor(this).also { it.start() }
+            }
+            startNotificationListenerRecovery()
+        } else {
+            notificationRecoveryJob?.cancel()
+            notificationRecoveryJob = null
+            mediaPlayback?.stop()
+            mediaPlayback = null
+        }
+
+        // SystemEventMonitor is still a single shared instance. M5 narrows its registrations based
+        // on these same consumer flags without ever creating parallel observers.
+        if (state.overlayWanted) {
+            if (systemEvents == null) {
+                systemEvents = SystemEventMonitor(this).also { it.start() }
+            }
+        } else {
+            systemEvents?.stop()
+            systemEvents = null
+        }
     }
 
     /**
@@ -88,6 +109,7 @@ class CutoutAccessibilityService : AccessibilityService() {
         notificationRecoveryJob = serviceScope.launch {
             CutoutNotificationListenerService.bound.collectLatest { listenerBound ->
                 if (listenerBound ||
+                    currentRuntimeState?.islandWanted != true ||
                     !Permissions.isNotificationAccessGranted(this@CutoutAccessibilityService)
                 ) {
                     return@collectLatest
@@ -96,6 +118,7 @@ class CutoutAccessibilityService : AccessibilityService() {
                 var retryDelayMs = INITIAL_REBIND_DELAY_MS
                 while (
                     isActive &&
+                    currentRuntimeState?.islandWanted == true &&
                     Permissions.isNotificationAccessGranted(this@CutoutAccessibilityService) &&
                     !CutoutNotificationListenerService.bound.value
                 ) {
@@ -160,9 +183,11 @@ class CutoutAccessibilityService : AccessibilityService() {
         val pkg = ev.packageName?.toString()?.takeIf { it.isNotBlank() } ?: return
 
         if (ev.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            ForegroundAppBus.update(pkg)
-            scheduleStatusBarAppearanceReconcile()
+            if (currentRuntimeState?.islandWanted == true) ForegroundAppBus.update(pkg)
+            if (currentRuntimeState?.statusBarWanted == true) scheduleStatusBarAppearanceReconcile()
         }
+
+        if (currentRuntimeState?.islandWanted != true) return
 
         if (isAssistantPackage(pkg)) {
             inspectAssistantWindow(pkg, ev)
@@ -247,7 +272,7 @@ class CutoutAccessibilityService : AccessibilityService() {
         statusBarAppearanceReconcileJob?.cancel()
         statusBarAppearanceReconcileJob = serviceScope.launch {
             delay(150L)
-            statusBarAppearanceController?.reconcile()
+            overlay?.reconcileCustomStatusBarAppearance()
         }
     }
 
@@ -280,11 +305,9 @@ class CutoutAccessibilityService : AccessibilityService() {
         notificationRecoveryJob = null
         statusBarAppearanceReconcileJob?.cancel()
         statusBarAppearanceReconcileJob = null
-        statusBarAppearanceJob?.cancel()
-        statusBarAppearanceJob = null
-        shizukuAppearanceJob?.cancel()
-        shizukuAppearanceJob = null
-        statusBarAppearanceController = null
+        runtimeCoordinator?.stop()
+        runtimeCoordinator = null
+        currentRuntimeState = null
         _bound.value = false
         instance = null
         mediaPlayback?.stop()
