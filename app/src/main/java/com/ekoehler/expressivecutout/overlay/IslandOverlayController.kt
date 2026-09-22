@@ -14,6 +14,7 @@ import android.graphics.Rect
 import android.graphics.Region
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.os.Bundle
 import android.util.Log
 import android.view.Gravity
@@ -190,8 +191,16 @@ internal class IslandOverlayController(
     private val rotationSnapState = MutableStateFlow(false)
     private val expandedState = MutableStateFlow(false)
     private val customStatusBarLockedState = MutableStateFlow(false)
+    private val screenOnState = MutableStateFlow(
+        context.getSystemService<PowerManager>()?.isInteractive ?: true,
+    )
     private val customStatusBarController =
-        CustomStatusBarController(context, orientationState, customStatusBarLockedState)
+        CustomStatusBarController(
+            context,
+            orientationState,
+            customStatusBarLockedState,
+            screenOnState,
+        )
     private val islandRuntimeEnabledState = MutableStateFlow(false)
     private var islandRuntimeScope: CoroutineScope? = null
 
@@ -372,7 +381,15 @@ internal class IslandOverlayController(
      * system broadcasts.
      */
     private val lockReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = applyLockVisibility()
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> screenOnState.value = false
+                Intent.ACTION_SCREEN_ON,
+                Intent.ACTION_USER_PRESENT,
+                -> screenOnState.value = true
+            }
+            applyLockVisibility()
+        }
     }
 
     /**
