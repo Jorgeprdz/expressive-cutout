@@ -589,6 +589,7 @@ class SystemEventMonitor(
             unregisterCellularSignalStrength()
             cellularNetworkTypeRefreshJob?.cancel()
             cellularNetworkTypeRefreshJob = null
+            cellularNetworkTypeSource.close()
         }
 
         if (islandEnabled) {
