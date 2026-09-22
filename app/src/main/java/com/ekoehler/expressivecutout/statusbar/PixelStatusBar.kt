@@ -49,6 +49,9 @@ internal fun PixelStatusBarLayer(
     rightForeground: StatusBarForeground,
     layout: StatusBarLayoutResult,
     settings: CustomStatusBarSettings = CustomStatusBarSettings.DEFAULT,
+    notifications: List<StatusBarNotificationEntry> = emptyList(),
+    representedNotificationKeys: Set<String> = emptySet(),
+    ownPackageName: String = "",
     modifier: Modifier = Modifier,
 ) {
     val safe = settings.sanitized()
@@ -100,6 +103,26 @@ internal fun PixelStatusBarLayer(
                     maxLines = 1,
                 )
             }
+
+            val notificationGapPx = with(density) { 6.dp.roundToPx() }
+            val leftEdgeInsetPx = with(density) { styleSpec.edgeInsetDp.dp.roundToPx() }
+            val laneLeft = (placed.right + notificationGapPx).coerceAtMost(left.right)
+            val laneRight = (left.right - leftEdgeInsetPx).coerceAtLeast(laneLeft)
+            val notificationBounds = StatusBarRect(
+                left = laneLeft,
+                top = left.top,
+                right = laneRight,
+                bottom = left.bottom,
+            )
+            StatusBarNotificationLane(
+                entries = notifications,
+                mode = safe.notificationDisplayMode,
+                representedNotificationKeys = representedNotificationKeys,
+                foreground = leftForeground,
+                bounds = notificationBounds,
+                ownPackageName = ownPackageName,
+                scale = scales.systemIcons,
+            )
         }
 
         layout.rightContentRegion?.let { right ->
