@@ -41,6 +41,7 @@ internal class CustomStatusBarController(
     context: Context,
     private val orientation: StateFlow<Int>,
     private val locked: StateFlow<Boolean>,
+    private val screenOn: StateFlow<Boolean>,
 ) {
     private val appContext = context.applicationContext
     private val preferences = StatusBarPreferences(appContext)
@@ -74,8 +75,9 @@ internal class CustomStatusBarController(
                 ShizukuState.status,
                 orientation,
                 locked,
-            ) { settings, shizuku, orientation, locked ->
-                Wish(settings, shizuku, orientation, locked)
+                screenOn,
+            ) { settings, shizuku, orientation, locked, screenOn ->
+                Wish(settings, shizuku, orientation, locked, screenOn)
             }
                 .distinctUntilChanged()
                 .collect { wish -> reconcile(scope, wish) }
@@ -111,8 +113,16 @@ internal class CustomStatusBarController(
         }
 
         val portraitSupported = wish.orientation == Configuration.ORIENTATION_PORTRAIT
+        val visibility = StatusBarVisibilityPolicy.decide(
+            StatusBarVisibilityInput(
+                enabled = wish.settings.enabled,
+                screenOn = wish.screenOn,
+                locked = wish.locked,
+            ),
+        )
+        val visibleWanted = visibility.renderMode == StatusBarRenderMode.SHOW
         val decision = CustomStatusBarActivationPolicy.decide(
-            enabled = wish.settings.enabled && !wish.locked,
+            enabled = visibleWanted,
             shizukuReady = wish.shizuku == ShizukuStatus.READY,
             portraitSupported = portraitSupported,
         )
@@ -131,8 +141,8 @@ internal class CustomStatusBarController(
             }
             _render.value = CustomStatusBarDisconnectPolicy.keepRenderer(
                 nativeSuppressionApplied = nativeSuppressionApplied,
-                enabled = wish.settings.enabled,
-                locked = wish.locked,
+                enabled = visibleWanted,
+                locked = false,
                 portraitSupported = portraitSupported,
             )
             return
@@ -172,5 +182,6 @@ internal class CustomStatusBarController(
         val shizuku: ShizukuStatus,
         val orientation: Int,
         val locked: Boolean,
+        val screenOn: Boolean,
     )
 }
