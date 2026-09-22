@@ -52,6 +52,7 @@ internal class CustomStatusBarController(
     private var runtimeScope: CoroutineScope? = null
     private var controlJob: Job? = null
     private var appearanceJob: Job? = null
+    private var nativeSuppressionApplied = false
 
     fun start() {
         if (runtimeScope != null) return
@@ -79,6 +80,7 @@ internal class CustomStatusBarController(
 
     fun stop() {
         StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+        nativeSuppressionApplied = false
         _render.value = false
         appearanceJob?.cancel()
         appearanceJob = null
@@ -98,11 +100,29 @@ internal class CustomStatusBarController(
                 StatusBarAppearanceMode.FORCE_DARK_FOREGROUND
         }
 
+        val portraitSupported = wish.orientation == Configuration.ORIENTATION_PORTRAIT
         val decision = CustomStatusBarActivationPolicy.decide(
             enabled = wish.settings.enabled && !wish.locked,
             shizukuReady = wish.shizuku == ShizukuStatus.READY,
-            portraitSupported = wish.orientation == Configuration.ORIENTATION_PORTRAIT,
+            portraitSupported = portraitSupported,
         )
+
+        if (wish.shizuku != ShizukuStatus.READY) {
+            appearanceJob?.cancel()
+            appearanceJob = null
+
+            // We cannot issue disable(0) after Shizuku disappears. If a native suppression lease
+            // was already applied, keep the matching renderer visible rather than leave a blank
+            // status bar. The owner request is retained so StatusBarIconController re-applies it
+            // when Shizuku reconnects. If the user turned the feature off while disconnected,
+            // release the local owner now so reconnect clears the native lease before we hide.
+            if (!wish.settings.enabled) {
+                StatusBarIconController.clearOwnerRequest(StatusBarDisableOwner.CUSTOM_STATUS_BAR)
+            }
+            _render.value =
+                nativeSuppressionApplied && wish.settings.enabled && !wish.locked && portraitSupported
+            return
+        }
 
         if (decision.canRender) {
             ensureAppearanceMonitoring(scope)
@@ -121,6 +141,7 @@ internal class CustomStatusBarController(
             false
         }
 
+        nativeSuppressionApplied = decision.nativeRequest != null && applied
         _render.value = decision.canRender && applied
         if (_render.value) {
             scope.launch { appearanceController.reconcile() }
